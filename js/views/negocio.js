@@ -66,7 +66,7 @@ export function render() {
   const visiveis = state.leads
     .filter((l) => (filtro === 'todos' ? true : filtro === 'ativos' ? !FECHADOS.includes(l.status) : l.status === filtro))
     // Quem tem contato marcado vem primeiro, do mais atrasado ao mais distante.
-    .sort((a, b) => (a.followUp || '9').localeCompare(b.followUp || '9'));
+    .sort((a, b) => (a.followUp || '9').localeCompare(b.followUp || '9') || (a.id < b.id ? 1 : -1)); // sem data: mais novo primeiro
 
   return html`
     ${topo('Negócio', 'Funil de prospecção')}

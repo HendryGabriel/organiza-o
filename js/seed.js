@@ -76,6 +76,7 @@ export const seed = () => ({
   refeicoes: [],
   medidas: [],
   revisoes: {},
+  apagados: {}, // exclusões, para a sincronização não trazer de volta o que foi apagado
   timer: null,
   backupEm: null,
 });

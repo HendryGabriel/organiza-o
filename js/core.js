@@ -1,20 +1,29 @@
 // Estado, persistência e as peças compartilhadas pelas telas (ações, diálogo, aviso).
 import { seed } from './seed.js';
 import { hoje } from './logic.js';
+import { MAPAS, retrato, carimbar, darIds, valido } from './mescla.js';
 import { html, icon } from './ui.js';
 
 const CHAVE = 'hendry.v1';
 
 function hidratar(salvo) {
   const base = seed();
-  return { ...base, ...salvo, settings: { ...base.settings, ...salvo.settings } };
+  const estado = { ...base, ...salvo, settings: { ...base.settings, ...salvo.settings } };
+  for (const m of MAPAS) estado[m] ||= base[m];
+  estado.apagados ||= {};
+  darIds(estado, Date.now());
+  return estado;
 }
+
+let legado = false; // dados salvos antes de existir sincronização
 
 function carregar() {
   const bruto = localStorage.getItem(CHAVE);
   if (!bruto) return seed();
   try {
-    return hidratar(JSON.parse(bruto));
+    const salvo = JSON.parse(bruto);
+    legado = !salvo.apagados;
+    return hidratar(salvo);
   } catch {
     // Dado ilegível não é sobrescrito: fica guardado para recuperação manual.
     localStorage.setItem(`${CHAVE}.corrompido`, bruto);
@@ -33,27 +42,72 @@ export function salvar() {
   }
 }
 
+// Retrato do último salvamento. É contra ele que cada salvamento descobre o que mudou, para a sincronização
+// saber o que é mais novo em cada aparelho sem as telas precisarem avisar.
+let anterior = retrato(legado ? seed() : state);
+if (legado) {
+  // Primeira carga depois da atualização: tudo que difere do plano original conta como mexido agora.
+  anterior = carimbar(state, anterior, Date.now()).retrato;
+  salvar();
+}
+
 let render = () => {};
 export const aoRenderizar = (fn) => {
   render = fn;
 };
+
+const ouvintes = [];
+// Avisa depois de cada salvamento que mudou algo sincronizável.
+export const aoMudar = (fn) => ouvintes.push(fn);
+
 export const commit = () => {
+  const { retrato: novo, mudou } = carimbar(state, anterior, Date.now());
+  anterior = novo;
   salvar();
   render();
+  if (mudou) for (const fn of ouvintes) fn();
 };
 
+// Quem está no meio de um formulário da tela não perde o que digitou: ela se atualiza na próxima ação.
+const preenchendo = () => Boolean(document.activeElement?.closest?.('#main form'));
+
+// Estado que chegou da nuvem, já juntado com o deste aparelho. Não é mudança local: não carimba nem reenvia.
+export function aplicarRemoto(novo) {
+  state = novo;
+  anterior = retrato(state);
+  salvar();
+  if (!preenchendo()) render();
+}
+
+// Outra aba ou janela deste app salvou: adota o estado dela, para uma não desfazer o trabalho da outra.
+addEventListener('storage', (e) => {
+  if (e.key !== CHAVE || !e.newValue) return;
+  try {
+    state = hidratar(JSON.parse(e.newValue));
+    anterior = retrato(state);
+    if (!preenchendo()) render();
+  } catch {
+    // valor ilegível de outra aba: fica com o que já está na memória
+  }
+});
+
 // Backup importado é entrada externa: só entra se tiver a cara do estado deste app.
+// Não conta como "mexi em tudo agora": com a sincronização ligada, o backup é juntado ao que está na nuvem.
 export function substituir(obj) {
-  const listas = ['feitos', 'tasks', 'leads', 'videos', 'financas', 'treinos', 'refeicoes', 'medidas'];
-  if (obj?.v !== 1 || !listas.every((k) => Array.isArray(obj[k]))) return false;
+  if (!valido(obj)) return false;
   state = hidratar(obj);
-  commit();
+  anterior = retrato(state);
+  salvar();
+  render();
+  for (const fn of ouvintes) fn();
   return true;
 }
 
 export function apagarTudo() {
   state = seed();
-  commit();
+  anterior = retrato(state);
+  salvar();
+  render();
 }
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -61,7 +115,7 @@ export const texto = (v) => String(v ?? '').trim();
 
 // Tudo que conta como ação concluída passa por aqui; a semana é contada a partir desta lista.
 export function registrarFeito({ chave, titulo, area, min }) {
-  state.feitos.push({ data: hoje(), chave, titulo, area, min: min || 0 });
+  state.feitos.push({ id: uid(), data: hoje(), chave, titulo, area, min: min || 0 });
 }
 
 // Convite de instalação que o Chrome entrega (Android e computador). No iPhone não existe: é pelo menu Compartilhar.

@@ -3,6 +3,7 @@ import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fec
 import { html, raw, attr, icon, topo, campo, opcoes, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js';
 import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js';
 import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js';
+import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar, APARELHO } from '../sinc.js';
 import { formPlano } from './hoje.js';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -24,9 +25,9 @@ export const menu = () => html`
       ['semana', 'chart-bar', 'Semana', 'Revisão com os números reais'],
       ['tarefas', 'list-checks', 'Tarefas', 'Avulsas, fora do plano do dia'],
       ['rotina', 'calendar-check', 'Rotina', 'O plano de cada dia da semana'],
-      ['config', 'gear-six', 'Configurações', backup()],
+      ['config', 'gear-six', 'Configurações', ligada() ? textoStatus() : backup()],
     ].map(([rota, ic, nome, sub]) => html`
-      <li><a class="linha com-icone" href="#/${rota}">${icon(ic, 22)}<span class="principal">${nome}</span><span class="detalhe">${sub}</span></a></li>`)}
+      <li><a class="linha com-icone" href="#/${rota}">${icon(ic, 22)}<span class="principal">${nome}</span><span class="detalhe" ${attr('data-sinc', rota === 'config' && ligada())}>${sub}</span></a></li>`)}
   </ul>`;
 
 // ---------- Semana ----------
@@ -165,6 +166,45 @@ export const rotina = () => html`
 
 // ---------- Configurações ----------
 
+// Links do GitHub já preenchidos: o repositório privado e um token que só enxerga esse repositório.
+const DONO = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '';
+const LINK_REPO = `https://github.com/new?name=organiza-o-dados&visibility=private&description=${encodeURIComponent('Dados do app hendry.ia (sincronização entre aparelhos)')}`;
+const LINK_TOKEN = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent(`hendry.ia ${APARELHO}`)}&description=${encodeURIComponent('Lê e grava só o repositório de dados do app')}&expires_in=366&contents=write`;
+
+function blocoSinc() {
+  const { repo } = sinc();
+  return html`
+    <section class="bloco" aria-labelledby="h-sinc">
+      <h2 id="h-sinc">Sincronização entre aparelhos</h2>
+      ${ligada()
+        ? html`
+          <p class="nota"><span data-sinc>${textoStatus()}</span> Repositório ${repo}.</p>
+          <div class="acoes">
+            <button class="btn btn-s" data-act="sinc.agora">${icon('arrows-clockwise')} Sincronizar agora</button>
+            <button class="btn btn-t perigo" data-act="sinc.desconectar">Desconectar este aparelho</button>
+          </div>
+          <small>Com o app aberto, cada aparelho envia o que mudou e busca o que o outro fez. Sem internet, guarda e envia depois.</small>`
+        : html`
+          <p class="nota">Celular e computador com os mesmos dados. Eles ficam em um repositório privado do seu GitHub: só você tem acesso.</p>
+          <ol class="passos">
+            <li>
+              <span>Crie o repositório privado. Só na primeira vez, e já vem preenchido.</span>
+              <a class="btn btn-s" href="${LINK_REPO}" target="_blank" rel="noopener">Criar repositório</a>
+            </li>
+            <li>
+              <span>Crie um token para este aparelho. Em “Repository access”, escolha “Only select repositories” e marque <b>organiza-o-dados</b>. Depois, “Generate token”.</span>
+              <a class="btn btn-s" href="${LINK_TOKEN}" target="_blank" rel="noopener">Criar token</a>
+            </li>
+            <li><span>Copie o token e cole aqui. No outro aparelho, repita os passos 2 e 3.</span></li>
+          </ol>
+          <form class="pilha" data-act="sinc.conectar">
+            ${campo('Repositório', html`<input name="repo" required value="${repo || (DONO && `${DONO}/organiza-o-dados`)}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="usuario/organiza-o-dados…">`)}
+            ${campo('Token', html`<input type="password" name="token" required autocomplete="off" spellcheck="false" placeholder="github_pat_…">`, 'Fica só neste aparelho. Não entra no backup nem vai para a nuvem.')}
+            <div class="acoes"><button class="btn btn-p">Ligar sincronização</button></div>
+          </form>`}
+    </section>`;
+}
+
 const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const iphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
@@ -188,6 +228,7 @@ export function config() {
   return html`
     ${topo('Configurações')}
     ${!instalado() && blocoInstalar()}
+    ${blocoSinc()}
 
     <section class="bloco" aria-labelledby="h-metas">
       <h2 id="h-metas">Ciclo e metas</h2>
@@ -225,13 +266,12 @@ export function config() {
 
     <section class="bloco" aria-labelledby="h-dados">
       <h2 id="h-dados">Seus dados</h2>
-      <p class="nota">Tudo fica guardado neste navegador, sem conta e sem servidor. ${backup()}</p>
+      <p class="nota">${ligada() ? 'Além da cópia neste aparelho, os dados ficam no seu repositório privado do GitHub.' : 'Tudo fica guardado neste navegador, sem conta e sem servidor.'} ${backup()}</p>
       <div class="acoes">
         <button class="btn btn-s" data-act="config.exportar">${icon('download-simple')} Exportar backup</button>
         <label class="btn btn-s">${icon('upload-simple')} Importar backup<input class="sr" type="file" accept="application/json,.json" data-mudou="config.importar"></label>
         <button class="btn btn-t perigo" data-act="config.apagar">Apagar tudo</button>
       </div>
-      <small>Celular e computador não sincronizam sozinhos: leve os dados de um para o outro com exportar e importar.</small>
     </section>`;
 }
 
@@ -280,6 +320,28 @@ Object.assign(actions, {
     aviso('Metas salvas.');
   },
 
+  'sinc.conectar': async (f, form) => {
+    const botao = form.querySelector('button');
+    botao.disabled = true;
+    botao.textContent = 'Conectando…';
+    try {
+      await conectar(f.repo, f.token);
+      aviso('Sincronização ligada.');
+    } catch (e) {
+      botao.disabled = false;
+      botao.textContent = 'Ligar sincronização';
+      return invalido(form.elements[e.campo || 'token'], e.message);
+    }
+  },
+  'sinc.agora': async (_, botao) => {
+    botao.disabled = true;
+    await sincronizar();
+  },
+  'sinc.desconectar': () => {
+    if (!confirm('Desconectar este aparelho? Os dados continuam aqui e no GitHub. Ele só para de sincronizar.')) return false;
+    desconectar();
+  },
+
   'config.instalar': async () => {
     await pwa.convite?.prompt();
     pwa.convite = null;
@@ -325,7 +387,12 @@ Object.assign(actions, {
     return false;
   },
   'config.apagar': () => {
-    if (!confirm('Apagar todos os dados deste aparelho e voltar ao plano inicial? Isso não tem volta. Exporte um backup antes.')) return false;
+    const pergunta = ligada()
+      ? 'Apagar os dados deste aparelho e desconectá-lo da sincronização? O que já foi enviado continua no GitHub e nos outros aparelhos.'
+      : 'Apagar todos os dados deste aparelho e voltar ao plano inicial? Isso não tem volta. Exporte um backup antes.';
+    if (!confirm(pergunta)) return false;
+    // Desconecta antes: apagar aqui não pode virar "apagar em todo lugar" na próxima sincronização.
+    desconectar();
     apagarTudo();
     aviso('Dados apagados.');
     return false;

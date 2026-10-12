@@ -264,6 +264,12 @@ button.linha:hover .principal, a.linha:hover .principal { color: var(--accent-in
 .com-icone .detalhe { grid-column: 2; }
 
 .vazio { padding: 20px 0; color: var(--mute); }
+.passos { display: grid; gap: 14px; margin: 14px 0 18px; padding-left: 22px; }
+.passos li { padding-left: 4px; }
+.passos li::marker { color: var(--ink); font-weight: 600; }
+.passos span { display: block; }
+.passos b { color: var(--ink); }
+.passos .btn { margin-top: 8px; }
 .historico { list-style: none; margin: 8px 0 0; padding: 0; font-size: .875rem; }
 .historico li { padding: 6px 0; overflow-wrap: anywhere; }
 .historico b { color: var(--ink); }

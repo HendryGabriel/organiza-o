@@ -8,6 +8,7 @@ import { render as conteudo } from './views/conteudo.js';
 import { render as corpo } from './views/corpo.js';
 import { render as lancer } from './views/lancer.js';
 import { menu, semana, tarefas, rotina, config } from './views/mais.js';
+import { iniciar as iniciarSincronizacao } from './sinc.js';
 
 const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, semana, tarefas, rotina, config };
 
@@ -97,6 +98,8 @@ addEventListener('appinstalled', () => {
   pwa.convite = null;
   if (location.hash.startsWith('#/config')) render();
 });
+
+iniciarSincronizacao();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 // Pede ao navegador para não apagar os dados quando faltar espaço.

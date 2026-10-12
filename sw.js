@@ -3,7 +3,7 @@
 const CACHE = 'hendry-v1';
 const SHELL = [
   './', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg',
-  'js/app.js', 'js/core.js', 'js/logic.js', 'js/seed.js', 'js/ui.js', 'js/icons.js', 'js/gemini.js',
+  'js/app.js', 'js/core.js', 'js/logic.js', 'js/mescla.js', 'js/sinc.js', 'js/seed.js', 'js/ui.js', 'js/icons.js', 'js/gemini.js',
   'js/views/hoje.js', 'js/views/negocio.js', 'js/views/conteudo.js', 'js/views/corpo.js', 'js/views/lancer.js', 'js/views/mais.js',
 ];
 
