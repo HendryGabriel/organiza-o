@@ -24,6 +24,8 @@ const porcento = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFract
 export const dinheiro = (cent) => moeda.format((cent || 0) / 100);
 export const dinheiroCurto = (cent) => moedaCurta.format((cent || 0) / 100);
 export const n = (v) => numero.format(v ?? 0);
+const curto = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+export const compacto = (v) => curto.format(v ?? 0);
 // Valor em centavos no formato que a pessoa digita: 8500000 -> "85.000,00"
 export const valorCampo = (cent) => (cent ? (cent / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
 export const pct = (fracao) => porcento.format(fracao);
@@ -33,6 +35,7 @@ const data = (opcoes) => {
   return (isoData) => f.format(parseData(isoData));
 };
 export const dataCurta = data({ day: '2-digit', month: '2-digit' });
+export const dataNumerica = data({ day: '2-digit', month: '2-digit', year: 'numeric' });
 export const dataMedia = data({ weekday: 'short', day: '2-digit', month: '2-digit' });
 export const dataLonga = data({ weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -50,7 +53,7 @@ export const topo = (titulo, sub) => html`
 export const campo = (rotulo, controle, dica) => html`
   <label class="campo"><span>${rotulo}</span>${controle}${dica && html`<small>${dica}</small>`}</label>`;
 
-export const opcoes = (mapa, atual) =>
-  Object.entries(mapa).map(([v, r]) => html`<option value="${v}" ${attr('selected', v === String(atual ?? ''))}>${r}</option>`);
+// Título de um bloco que abre e fecha, com a seta do próprio app no lugar do triângulo do navegador.
+export const resumo = (texto) => html`<summary>${icon('caret-right', 16)}<span>${texto}</span></summary>`;
 
 export const vazio = (texto, acao) => html`<div class="vazio"><p>${texto}</p>${acao}</div>`;

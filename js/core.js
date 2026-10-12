@@ -155,11 +155,15 @@ export function aviso(msg) {
   relogio = setTimeout(() => el.hidePopover(), 4000);
 }
 
-// Erro de formulário: balão nativo no próprio campo, com foco nele. Some quando a pessoa volta a digitar.
+// Erro de formulário: escrito embaixo do próprio campo, com o foco nele. Some quando a pessoa corrige.
 export function invalido(campo, msg) {
-  campo.setCustomValidity(msg);
-  campo.reportValidity();
-  campo.addEventListener('input', () => campo.setCustomValidity(''), { once: true });
+  const caixa = campo.closest('.campo');
+  const erro = caixa.querySelector('.erro-campo') || caixa.appendChild(Object.assign(document.createElement('small'), { className: 'erro erro-campo', role: 'alert' }));
+  erro.textContent = msg;
+  (campo.type === 'hidden' ? caixa.querySelector('.gatilho') : campo).focus();
+  const limpar = () => erro.remove();
+  caixa.addEventListener('input', limpar, { once: true });
+  caixa.addEventListener('change', limpar, { once: true });
   return false;
 }
 

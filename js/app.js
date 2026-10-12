@@ -8,9 +8,12 @@ import { render as conteudo } from './views/conteudo.js';
 import { render as corpo } from './views/corpo.js';
 import { render as lancer } from './views/lancer.js';
 import { menu, semana, tarefas, rotina, config } from './views/mais.js';
+import { render as metricas } from './views/metricas.js';
+import { iniciar as iniciarGraficos } from './graficos.js';
 import { iniciar as iniciarSincronizacao } from './sinc.js';
+import { iniciar as iniciarComponentes } from './widgets.js';
 
-const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, semana, tarefas, rotina, config };
+const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, metricas, semana, tarefas, rotina, config };
 
 const PRINCIPAL = [
   ['hoje', 'Hoje', 'lightning'],
@@ -20,6 +23,7 @@ const PRINCIPAL = [
   ['lancer', 'Lancer', 'gauge'],
 ];
 const APOIO = [
+  ['metricas', 'Métricas', 'chart-line-up'],
   ['semana', 'Semana', 'chart-bar'],
   ['tarefas', 'Tarefas', 'list-checks'],
   ['rotina', 'Rotina', 'calendar-check'],
@@ -86,6 +90,8 @@ setInterval(() => {
   if (el) el.textContent = duracao(Date.now() - Number(el.dataset.inicio));
 }, 1000);
 
+iniciarComponentes();
+iniciarGraficos();
 render();
 
 // Guarda o convite de instalação para o botão em Configurações.

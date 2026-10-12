@@ -1,6 +1,7 @@
 // Telas de apoio: menu, revisão da semana, tarefas avulsas, rotina e configurações.
 import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js';
-import { html, raw, attr, icon, topo, campo, opcoes, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js';
+import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js';
+import { seletor, calendario } from '../widgets.js';
 import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js';
 import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js';
 import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar, APARELHO } from '../sinc.js';
@@ -22,6 +23,7 @@ export const menu = () => html`
   ${topo('Mais')}
   <ul class="linhas">
     ${[
+      ['metricas', 'chart-line-up', 'Métricas', 'Gráficos semana a semana'],
       ['semana', 'chart-bar', 'Semana', 'Revisão com os números reais'],
       ['tarefas', 'list-checks', 'Tarefas', 'Avulsas, fora do plano do dia'],
       ['rotina', 'calendar-check', 'Rotina', 'O plano de cada dia da semana'],
@@ -109,9 +111,9 @@ export function tarefas() {
     <form class="pilha" data-act="tarefa.nova">
       ${campo('Nova tarefa', html`<input name="titulo" required autocomplete="off" placeholder="Ex.: responder o Dr. fulano sobre a demo…">`)}
       <div class="tripla">
-        ${campo('Área', html`<select name="area">${opcoes(AREAS, 'clientes')}</select>`)}
-        ${campo('Tempo', html`<select name="min">${opcoes(MINUTOS, 30)}</select>`)}
-        ${campo('Prazo', html`<input type="date" name="prazo" min="${hoje()}">`)}
+        ${seletor('Área', 'area', AREAS, 'clientes')}
+        ${seletor('Tempo', 'min', MINUTOS, 30)}
+        ${calendario('Prazo', 'prazo', '', { min: hoje() })}
       </div>
       <div class="acoes"><button class="btn btn-p">${icon('plus')} Adicionar</button></div>
     </form>
@@ -138,7 +140,7 @@ export function tarefas() {
 
     ${feitas.length > 0 && html`
       <details class="bloco">
-        <summary>Concluídas recentes</summary>
+        ${resumo('Concluídas recentes')}
         <ul class="linhas compacta">
           ${feitas.map((t) => html`<li><span class="linha"><span class="principal">${t.titulo}</span><span class="lado">${dataCurta(t.feitaEm)}</span></span></li>`)}
         </ul>
@@ -234,8 +236,8 @@ export function config() {
       <h2 id="h-metas">Ciclo e metas</h2>
       <form class="pilha" data-act="config.salvar">
         <div class="dupla">
-          ${campo('Início do ciclo', html`<input type="date" name="cicloInicio" required value="${s.cicloInicio}">`)}
-          ${campo('Fim do ciclo', html`<input type="date" name="cicloFim" required value="${s.cicloFim}">`)}
+          ${calendario('Início do ciclo', 'cicloInicio', s.cicloInicio, { obrigatorio: true })}
+          ${calendario('Fim do ciclo', 'cicloFim', s.cicloFim, { obrigatorio: true })}
         </div>
         <div class="dupla">
           ${campo('Meta do Lancer (R$)', html`<input name="metaLancer" inputmode="decimal" autocomplete="off" value="${valorCampo(s.metaLancer)}">`, 'Carro, documentação e reserva inicial.')}

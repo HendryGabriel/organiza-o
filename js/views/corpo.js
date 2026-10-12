@@ -1,7 +1,10 @@
 import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, vazio, dataCurta, dataMedia, n } from '../ui.js';
+import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js';
+import { calendario } from '../widgets.js';
 import { hoje, somaDias, inicioSemana, diaSemana, somaMacros, num } from '../logic.js';
 import { reduzirFoto, analisarRefeicao } from '../gemini.js';
+import { ultimasSemanas, kcalPorDia } from '../metricas.js';
+import { barras, linha } from '../graficos.js';
 
 const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Medidas' };
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -16,15 +19,19 @@ const macros = (m) => `P ${n(m.p)} g, C ${n(m.c)} g, G ${n(m.g)} g`;
 let editandoDias = false; // mantém a lista de dias aberta enquanto a pessoa marca vários
 
 function formTreino(t) {
-  const tipos = [...new Set(state.treinos.map((x) => x.tipo).filter(Boolean))];
+  // Os treinos mais recentes viram atalhos de um toque, no lugar da lista de sugestões do navegador.
+  const tipos = [...new Set([...state.treinos].sort((a, b) => b.data.localeCompare(a.data)).map((x) => x.tipo).filter(Boolean))].slice(0, 6);
   return html`
     <form class="dlg-corpo" data-act="treino.salvar" data-id="${t?.id || ''}">
       <div class="dupla">
-        ${campo('Data', html`<input type="date" name="data" required value="${t?.data || hoje()}">`)}
+        ${calendario('Data', 'data', t?.data || hoje(), { obrigatorio: true })}
         ${campo('Duração (min)', html`<input name="min" inputmode="numeric" value="${t?.min || ''}" autocomplete="off">`)}
       </div>
-      ${campo('Treino', html`<input name="tipo" list="tipos-treino" value="${t?.tipo || ''}" autocomplete="off" placeholder="Ex.: peito e tríceps…">`)}
-      <datalist id="tipos-treino">${tipos.map((x) => html`<option value="${x}">`)}</datalist>
+      ${campo('Treino', html`<input name="tipo" value="${t?.tipo || ''}" autocomplete="off" placeholder="Ex.: peito e tríceps…">`)}
+      ${tipos.length > 0 && html`
+        <div class="sugestoes" role="group" aria-label="Treinos recentes">
+          ${tipos.map((x) => html`<button type="button" data-act="treino.tipo" data-texto="${x}">${x}</button>`)}
+        </div>`}
       ${campo('Observações', html`<textarea name="obs" rows="3" placeholder="Cargas, como se sentiu…">${t?.obs || ''}</textarea>`)}
       <footer class="dlg-acoes">
         ${t && html`<button type="button" class="btn btn-t perigo" data-act="treino.excluir" data-id="${t.id}">Excluir</button>`}
@@ -41,6 +48,7 @@ function treino() {
   const semana = SEMANA.map((_, i) => somaDias(ini, i));
   const naSemana = semana.filter((x) => feitos.has(x)).length;
   const recentes = [...state.treinos].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 30);
+  const semanas8 = ultimasSemanas(state, d, 8, dataCurta);
 
   return html`
     <ol class="tira" aria-label="Treinos desta semana">
@@ -62,13 +70,24 @@ function treino() {
     </p>
 
     <details class="bloco" ${attr('open', planejados.length === 0 || editandoDias)}>
-      <summary>Dias de treino planejados</summary>
+      ${resumo('Dias de treino planejados')}
       <div class="chips" role="group" aria-label="Dias de treino planejados">
         ${SEMANA.map((dia) => html`
           <label><input type="checkbox" value="${dia}" data-mudou="treino.dia" ${attr('checked', planejados.includes(dia))}><span>${NOMES[dia]}</span></label>`)}
       </div>
       <small>Treino só é esperado nesses dias. Fora deles, descanso é descanso.</small>
     </details>
+
+    ${state.treinos.length > 0 && html`
+      <section class="bloco">
+        ${barras({
+          ...semanas8,
+          titulo: 'Treinos por semana',
+          series: [{ nome: 'Treinos', valores: semanas8.serie.map((x) => x.treinos) }],
+          meta: planejados.length > 0 && { valor: planejados.length, rotulo: `planejado ${planejados.length}` },
+          vazio: 'Nenhum treino nas últimas 8 semanas.',
+        })}
+      </section>`}
 
     <section class="bloco" aria-labelledby="h-treinos">
       <h2 id="h-treinos">Últimos treinos</h2>
@@ -108,7 +127,7 @@ function formRefeicao(r) {
         ${campo('Carboidrato (g)', html`<input name="c" inputmode="numeric" value="${r?.c ?? ''}" autocomplete="off">`)}
         ${campo('Gordura (g)', html`<input name="g" inputmode="numeric" value="${r?.g ?? ''}" autocomplete="off">`)}
       </div>
-      ${campo('Data', html`<input type="date" name="data" required value="${r?.data || diaEscolhido || hoje()}">`)}
+      ${calendario('Data', 'data', r?.data || diaEscolhido || hoje(), { max: hoje(), obrigatorio: true })}
       ${r?.itens?.length > 0 && html`
         <section>
           <h3>Itens da foto</h3>
@@ -187,14 +206,11 @@ function comida() {
   const doDia = state.refeicoes.filter((r) => r.data === d).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
   const total = somaMacros(doDia);
   const { metaKcal, metaProteina } = state.settings;
-  const semana = [...Array(7)].map((_, i) => somaDias(hoje(), -i));
+  const dias = kcalPorDia(state, hoje(), 14);
 
   return html`
     <div class="barra">
-      <label class="campo em-linha">
-        <span class="sr">Dia</span>
-        <input type="date" value="${d}" max="${hoje()}" data-mudou="comida.dia">
-      </label>
+      ${calendario('Dia', 'dia', d, { max: hoje(), obrigatorio: true, mudou: 'comida.dia', oculto: true })}
       ${d !== hoje() && html`<button class="btn btn-t" data-act="comida.hoje">Voltar para hoje</button>`}
     </div>
 
@@ -227,14 +243,19 @@ function comida() {
           </ul>`}
     </section>
 
-    <section class="bloco" aria-labelledby="h-7dias">
-      <h2 id="h-7dias">Últimos 7 dias</h2>
-      <ul class="linhas compacta">
-        ${semana.map((x) => {
-          const t = somaMacros(state.refeicoes.filter((r) => r.data === x));
-          return html`<li><span class="linha"><span class="principal">${dataMedia(x)}</span><span class="lado">${t.kcal ? html`<b class="num">${n(t.kcal)}</b> kcal` : 'sem registro'}</span></span></li>`;
-        })}
-      </ul>
+    <section class="bloco">
+      ${barras({
+        titulo: 'Calorias nos últimos 14 dias',
+        rotulos: dias.map((x) => x.data.slice(8)),
+        longos: dias.map((x) => dataMedia(x.data)),
+        series: [{ nome: 'Calorias', valores: dias.map((x) => x.kcal) }],
+        formato: (v) => `${n(v)} kcal`,
+        eixo: compacto,
+        inteiro: false,
+        meta: metaKcal > 0 && { valor: metaKcal, rotulo: `meta ${n(metaKcal)}` },
+        destaque: 'hoje',
+        vazio: 'Nenhuma refeição registrada nos últimos 14 dias.',
+      })}
     </section>`;
 }
 
@@ -246,6 +267,7 @@ function medidas() {
   const primeira = lista.at(-1);
   const delta = atual && primeira !== atual ? atual.peso - primeira.peso : null;
   const kg = (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  const grafico = lista.slice(0, 20).reverse(); // as 20 medidas mais recentes, em ordem de data
 
   return html`
     ${atual && html`
@@ -256,13 +278,27 @@ function medidas() {
 
     <form class="pilha" data-act="medida.salvar">
       <div class="dupla">
-        ${campo('Data', html`<input type="date" name="data" required value="${hoje()}" max="${hoje()}">`)}
+        ${calendario('Data', 'data', hoje(), { max: hoje(), obrigatorio: true })}
         ${campo('Peso (kg)', html`<input name="peso" required inputmode="decimal" autocomplete="off" placeholder="Ex.: 78,4…">`)}
       </div>
       ${campo('Observação', html`<input name="obs" autocomplete="off" placeholder="Ex.: em jejum, pela manhã…">`)}
       <div class="acoes"><button class="btn btn-p">Registrar peso</button></div>
     </form>
     <p class="nota">Registre quando fizer sentido. Não precisa ser todo dia.</p>
+
+    ${lista.length > 1 && html`
+      <section class="bloco">
+        ${linha({
+          titulo: 'Peso',
+          sub: 'Um ponto por medida, da mais antiga para a mais recente. O eixo acompanha a faixa das medidas.',
+          rotulos: grafico.map((m) => dataCurta(m.data)),
+          longos: grafico.map((m) => dataMedia(m.data)),
+          valores: grafico.map((m) => m.peso),
+          nome: 'Peso',
+          formato: (v) => `${kg(v)} kg`,
+          eixo: n,
+        })}
+      </section>`}
 
     <section class="bloco" aria-labelledby="h-medidas">
       <h2 id="h-medidas">Histórico</h2>
@@ -313,6 +349,10 @@ Object.assign(actions, {
     if (!confirm('Excluir este treino?')) return false;
     state.treinos = state.treinos.filter((t) => t.id !== id);
     fechar();
+  },
+  'treino.tipo': ({ texto: tipo }, botao) => {
+    botao.closest('form').elements.tipo.value = tipo;
+    return false;
   },
   'treino.dia': (_, caixa) => {
     const dia = Number(caixa.value);

@@ -9,6 +9,7 @@ Painel pessoal de execução: abre, mostra **uma** tarefa que cabe no tempo que 
 | **Conteúdo** | Pauta dos vídeos, do relato ao roteiro (com IA) até as publicações por plataforma. |
 | **Corpo** | Treinos, alimentação com **foto → calorias pela IA do Google** e peso. |
 | **Lancer** | Placar da reserva. Só anda com aporte registrado: faturar não é reservar. |
+| **Métricas** | Gráficos semana a semana: ações, leads e funil, vídeos, treinos, calorias, peso, reserva e receita. |
 | **Semana** | Revisão com os números reais e até 3 prioridades para a semana seguinte. |
 
 ## Usar
@@ -75,6 +76,9 @@ js/mescla.js              regras puras da sincronização (o que mudou, como jun
 js/sinc.js                conversa com o GitHub: baixar, juntar, enviar
 js/seed.js                plano inicial de 12/10 a 31/12/2026 e pauta de vídeos
 js/gemini.js              foto → calorias e relato → roteiro
+js/widgets.js             seletor e calendário próprios (nada de <select> ou calendário do navegador)
+js/metricas.js            regras puras dos números por semana
+js/graficos.js            barras e linhas em HTML e CSS, com dica e tabela
 js/views/                 uma tela por arquivo
 js/icons.js               ícones Phosphor (MIT)
 sw.js                     uso offline

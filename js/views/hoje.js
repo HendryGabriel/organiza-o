@@ -1,5 +1,6 @@
 import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, opcoes, dataLonga, dataCurta, duracao, n } from '../ui.js';
+import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, n } from '../ui.js';
+import { seletor } from '../widgets.js';
 import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, diaSemana, AREAS } from '../logic.js';
 
 const MODOS = [
@@ -67,7 +68,7 @@ function semTarefa(d) {
 
 export const formPlano = (p, act, extra) => html`
   <form class="dlg-corpo" data-act="${act}" ${extra}>
-    ${campo('Área', html`<select name="area">${opcoes(AREAS, p?.area)}</select>`)}
+    ${seletor('Área', 'area', AREAS, p?.area)}
     ${campo('Em 5 min', html`<input name="t5" value="${p?.t5 || ''}" autocomplete="off">`)}
     ${campo('Em 30 min', html`<input name="t30" value="${p?.t30 || ''}" autocomplete="off">`)}
     ${campo('Em 90 min', html`<input name="t90" value="${p?.t90 || ''}" autocomplete="off">`)}
@@ -117,7 +118,7 @@ export function render() {
         : !proxima
           ? semTarefa(d)
           : feitos.length
-            ? html`<details class="mais-uma"><summary>Fazer mais uma</summary>${cartao(proxima)}</details>`
+            ? html`<details class="mais-uma">${resumo('Fazer mais uma')}${cartao(proxima)}</details>`
             : cartao(proxima)}
 
     <section class="bloco" aria-labelledby="h-semana">
@@ -128,6 +129,7 @@ export function render() {
         <div><dt>treinos</dt><dd class="num">${s.treinos}${s.treinosPlanejados > 0 && html`<small>/${s.treinosPlanejados}</small>`}</dd></div>
       </dl>
       ${prioridades && html`<p class="prioridades"><b>Prioridades da semana</b>${prioridades}</p>`}
+      <p class="mais-link"><a href="#/metricas">Ver métricas e gráficos</a></p>
     </section>
 
     <section class="bloco" aria-labelledby="h-corpo">

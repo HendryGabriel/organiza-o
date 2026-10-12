@@ -1,9 +1,12 @@
 import { state, actions, abrir, fechar, aviso, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, opcoes, vazio, dataMedia } from '../ui.js';
+import { html, icon, topo, campo, vazio, dataMedia, dataCurta } from '../ui.js';
+import { seletor, calendario } from '../widgets.js';
 import { hoje, resumoSemana } from '../logic.js';
+import { ultimasSemanas } from '../metricas.js';
+import { barras } from '../graficos.js';
 import { gerarRoteiro } from '../gemini.js';
 
-const STATUS = {
+export const STATUS = {
   ideia: 'Ideia',
   relato: 'Relato registrado',
   roteiro: 'Roteiro',
@@ -16,6 +19,7 @@ const STATUS = {
 const QUADROS = { lancer: 'Até o Lancer', gostoso: 'Ficando Gostoso', bastidores: 'Bastidores' };
 const PLATAFORMAS = { instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
 const NO_AR = ['publicado', 'analisado'];
+const FILTROS = { producao: 'Em produção', todos: 'Todos', ...STATUS };
 
 let filtro = 'producao';
 
@@ -26,10 +30,10 @@ function formVideo(v) {
     <form class="dlg-corpo" data-act="video.salvar" data-id="${v.id || ''}">
       ${campo('Título ou tema', html`<input name="titulo" required value="${v.titulo || ''}" autocomplete="off">`)}
       <div class="dupla">
-        ${campo('Quadro', html`<select name="quadro">${opcoes(QUADROS, v.quadro)}</select>`)}
-        ${campo('Etapa', html`<select name="status">${opcoes(STATUS, v.status)}</select>`)}
+        ${seletor('Quadro', 'quadro', QUADROS, v.quadro)}
+        ${seletor('Etapa', 'status', STATUS, v.status)}
       </div>
-      ${campo('Data prevista', html`<input type="date" name="previsto" value="${v.previsto || ''}">`)}
+      ${calendario('Data prevista', 'previsto', v.previsto)}
 
       ${campo('Relato', html`<textarea name="relato" rows="4" placeholder="Ex.: testei a demo com um escritório fictício e o agendamento falhou…">${v.relato || ''}</textarea>`, 'O que aconteceu de verdade. O roteiro sai daqui e de mais nada.')}
       <button type="button" class="btn btn-s" data-act="video.ia">Gerar roteiro com IA</button>
@@ -44,7 +48,7 @@ function formVideo(v) {
         <legend>Publicações</legend>
         ${Object.entries(PLATAFORMAS).map(([p, nome]) => html`
           <div class="dupla">
-            ${campo(nome, html`<input type="date" name="pub-${p}-data" value="${v.pubs[p]?.data || ''}">`)}
+            ${calendario(nome, `pub-${p}-data`, v.pubs[p]?.data)}
             ${campo('Link', html`<input type="url" name="pub-${p}-url" value="${v.pubs[p]?.url || ''}" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…">`)}
           </div>`)}
         <small>O mesmo vídeo em 3 plataformas conta como 1 vídeo e 3 posts.</small>
@@ -61,6 +65,7 @@ export function render() {
   const s = resumoSemana(state, hoje());
   const noAr = state.videos.filter((v) => Object.values(v.pubs || {}).some((p) => p.data));
   const posts = noAr.reduce((t, v) => t + Object.values(v.pubs).filter((p) => p.data).length, 0);
+  const semanas = ultimasSemanas(state, hoje(), 8, dataCurta);
   const visiveis = state.videos
     .filter((v) => (filtro === 'todos' ? true : filtro === 'producao' ? !NO_AR.includes(v.status) : v.status === filtro))
     .sort((a, b) => (a.previsto || '9').localeCompare(b.previsto || '9'));
@@ -74,15 +79,19 @@ export function render() {
       <div><dt>posts no total</dt><dd class="num">${posts}</dd></div>
     </dl>
 
+    ${noAr.length > 0 && html`
+      <section class="bloco">
+        ${barras({
+          ...semanas,
+          titulo: 'Vídeos publicados por semana',
+          series: [{ nome: 'Vídeos', valores: semanas.serie.map((x) => x.videos) }],
+          meta: { valor: state.settings.videosSemana, rotulo: `meta ${state.settings.videosSemana}` },
+          vazio: 'Nenhum vídeo publicado nas últimas 8 semanas.',
+        })}
+      </section>`}
+
     <div class="barra">
-      <label class="campo em-linha">
-        <span class="sr">Filtrar por etapa</span>
-        <select data-mudou="video.filtro">
-          <option value="producao" ${attr('selected', filtro === 'producao')}>Em produção</option>
-          <option value="todos" ${attr('selected', filtro === 'todos')}>Todos</option>
-          ${opcoes(STATUS, filtro)}
-        </select>
-      </label>
+      ${seletor('Filtrar por etapa', 'filtro', FILTROS, filtro, { mudou: 'video.filtro', oculto: true })}
       <button class="btn btn-p" data-act="video.novo">${icon('plus')} Novo vídeo</button>
     </div>
 

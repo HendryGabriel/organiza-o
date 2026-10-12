@@ -1,8 +1,10 @@
 import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, opcoes, vazio, dataCurta, pct } from '../ui.js';
+import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js';
+import { seletor, calendario } from '../widgets.js';
 import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS } from '../logic.js';
 
-const CANAIS = ['WhatsApp', 'Instagram', 'E-mail', 'Ligação', 'Presencial', 'Outro'];
+const CANAIS = Object.fromEntries(['WhatsApp', 'Instagram', 'E-mail', 'Ligação', 'Presencial', 'Outro'].map((c) => [c, c]));
+const FILTROS = { ativos: 'Em andamento', todos: 'Todos', ...ETAPAS };
 const CAMPOS = ['empresa', 'segmento', 'cidade', 'contato', 'origem', 'problema', 'obs', 'proximoPasso', 'followUp'];
 
 let filtro = 'ativos';
@@ -17,8 +19,8 @@ function formLead(l) {
     <form class="dlg-corpo" data-act="lead.salvar" data-id="${l.id || ''}">
       ${campo('Empresa ou escritório', html`<input name="empresa" required value="${l.empresa || ''}" autocomplete="off">`)}
       <div class="dupla">
-        ${campo('Etapa', html`<select name="status">${opcoes(ETAPAS, l.status)}</select>`)}
-        ${campo('Próximo contato', html`<input type="date" name="followUp" value="${l.followUp || ''}">`)}
+        ${seletor('Etapa', 'status', ETAPAS, l.status)}
+        ${calendario('Próximo contato', 'followUp', l.followUp)}
       </div>
       ${campo('Próximo passo', html`<input name="proximoPasso" value="${l.proximoPasso || ''}" autocomplete="off" placeholder="Ex.: enviar a demo de 90 segundos…">`)}
 
@@ -26,14 +28,14 @@ function formLead(l) {
         <fieldset class="grupo">
           <legend>Registrar contato feito hoje</legend>
           <div class="dupla">
-            ${campo('Canal', html`<select name="canal">${CANAIS.map((c) => html`<option>${c}</option>`)}</select>`)}
+            ${seletor('Canal', 'canal', CANAIS)}
             ${campo('O que aconteceu', html`<input name="resumo" autocomplete="off" placeholder="Ex.: mandei a abordagem…">`)}
           </div>
           <small>Conta como ação comercial do dia e marca o lead como abordado.</small>
         </fieldset>`}
 
       <details>
-        <summary>Mais detalhes</summary>
+        ${resumo('Mais detalhes')}
         <div class="pilha">
           <div class="dupla">
             ${campo('Segmento', html`<input name="segmento" value="${l.segmento || ''}" autocomplete="off" placeholder="Ex.: advocacia trabalhista…">`)}
@@ -80,14 +82,7 @@ export function render() {
     </dl>
 
     <div class="barra">
-      <label class="campo em-linha">
-        <span class="sr">Filtrar por etapa</span>
-        <select data-mudou="lead.filtro">
-          <option value="ativos" ${attr('selected', filtro === 'ativos')}>Em andamento</option>
-          <option value="todos" ${attr('selected', filtro === 'todos')}>Todos</option>
-          ${opcoes(ETAPAS, filtro)}
-        </select>
-      </label>
+      ${seletor('Filtrar por etapa', 'filtro', FILTROS, filtro, { mudou: 'lead.filtro', oculto: true })}
       <button class="btn btn-p" data-act="lead.novo">${icon('plus')} Novo lead</button>
     </div>
 

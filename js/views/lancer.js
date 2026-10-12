@@ -1,6 +1,9 @@
 import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js';
-import { html, raw, attr, icon, topo, campo, opcoes, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, pct } from '../ui.js';
+import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js';
+import { seletor, calendario } from '../widgets.js';
 import { hoje, financas, centavos, TIPOS } from '../logic.js';
+import { ultimasSemanas } from '../metricas.js';
+import { linha } from '../graficos.js';
 
 const SINAL = { receita: '+', custo: '-', imposto: '-', reserva: '', retirada: '-' };
 const CURTO = { ...TIPOS, reserva: 'Aporte Lancer', retirada: 'Retirada Lancer' };
@@ -45,10 +48,10 @@ function contaGiros(fracao) {
 function formLancamento(l) {
   return html`
     <form class="dlg-corpo" data-act="fin.salvar" data-id="${l?.id || ''}">
-      ${campo('Tipo', html`<select name="tipo">${opcoes(TIPOS, l?.tipo || 'receita')}</select>`)}
+      ${seletor('Tipo', 'tipo', TIPOS, l?.tipo || 'receita')}
       <div class="dupla">
         ${campo('Valor (R$)', html`<input name="valor" required inputmode="decimal" autocomplete="off" value="${valorCampo(l?.valor)}" placeholder="Ex.: 697,00…">`)}
-        ${campo('Data', html`<input type="date" name="data" required value="${l?.data || hoje()}" max="${hoje()}">`)}
+        ${calendario('Data', 'data', l?.data || hoje(), { max: hoje(), obrigatorio: true })}
       </div>
       ${campo('Descrição', html`<input name="descricao" value="${l?.descricao || ''}" autocomplete="off" placeholder="Ex.: implantação do atendente…">`)}
       ${campo('Cliente ou projeto', html`<input name="cliente" value="${l?.cliente || ''}" autocomplete="off">`)}
@@ -65,6 +68,8 @@ export function render() {
   const f = financas(state.financas);
   const meta = state.settings.metaLancer;
   const lista = [...state.financas].sort((a, b) => b.data.localeCompare(a.data));
+  const semanas = ultimasSemanas(state, hoje(), 12, dataCurta);
+  const reservas = semanas.serie.map((s) => s.reservado);
 
   return html`
     ${topo('Lancer', 'Só entra dinheiro de projeto paralelo que já foi reservado')}
@@ -88,6 +93,21 @@ export function render() {
       <div><dt>resultado estimado</dt><dd class="num">${dinheiroCurto(f.resultado)}</dd></div>
     </dl>
     ${f.aReceber > 0 && html`<p class="nota">A receber: ${dinheiro(f.aReceber)}. Não conta até cair na conta.</p>`}
+
+    ${reservas.some((v) => v !== 0) && html`
+      <section class="bloco">
+        ${linha({
+          ...semanas,
+          titulo: 'Reserva nas últimas 12 semanas',
+          nome: 'Reservado',
+          // Antes do primeiro aporte não há ponto: a linha começa onde a reserva começa.
+          valores: reservas.map((v, i) => (reservas.slice(0, i + 1).every((x) => x === 0) ? null : v)),
+          formato: dinheiro,
+          eixo: (c) => `R$ ${compacto(c / 100)}`,
+          zero: true,
+          meta: meta > 0 && { valor: meta, rotulo: 'meta' },
+        })}
+      </section>`}
 
     <div class="barra">
       <h2>Lançamentos</h2>
