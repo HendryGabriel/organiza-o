@@ -4,7 +4,8 @@ import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro,
 import { seletor, calendario } from '../widgets.js';
 import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js';
 import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js';
-import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar, APARELHO } from '../sinc.js';
+import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js';
+import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js';
 import { formPlano } from './hoje.js';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -219,6 +220,30 @@ const blocoInstalar = () => html`
           Instalado, ele abre em tela cheia, funciona sem internet e o navegador não apaga seus dados por falta de uso.</p>`}
   </section>`;
 
+// Notificações: um lembrete de manhã e outro à noite. Quem manda o toque é o repositório de dados, por isso
+// só chega com o app fechado quando a sincronização está ligada.
+function blocoLembretes() {
+  const bloqueado = avisaAqui() && Notification.permission === 'denied';
+  return html`
+    <section class="bloco" aria-labelledby="h-lembretes">
+      <h2 id="h-lembretes">Notificações</h2>
+      ${!avisaAqui()
+        ? html`<p class="nota">${iphone() ? 'No iPhone, as notificações só funcionam com o app instalado na Tela de Início. Instale e abra por lá.' : 'Este navegador não mostra notificações.'}</p>`
+        : bloqueado
+          ? html`<p class="nota">As notificações estão bloqueadas para este site. Libere nas configurações do navegador (no cadeado ao lado do endereço) e volte aqui.</p>`
+          : lembretesAtivos()
+            ? html`
+              <p class="nota">Ativas neste aparelho: por volta das 8h, o que tem para hoje; por volta das 21h, o lembrete de contar o dia.${!ligada() ? ' Para chegarem com o app fechado, ligue a sincronização acima.' : ''}</p>
+              <div class="acoes">
+                <button class="btn btn-s" data-act="lembretes.testar">${icon('bell')} Enviar um teste</button>
+                <button class="btn btn-t perigo" data-act="lembretes.desativar">Desativar neste aparelho</button>
+              </div>`
+            : html`
+              <p class="nota">Um lembrete de manhã com follow-ups, prazos e treino do dia, e outro à noite para contar o dia à assistente.</p>
+              <div class="acoes"><button class="btn btn-p" data-act="lembretes.ativar">${icon('bell')} Ativar notificações</button></div>`}
+    </section>`;
+}
+
 export function config() {
   const s = state.settings;
   const g = gemini();
@@ -226,6 +251,7 @@ export function config() {
     ${topo('Configurações')}
     ${!instalado() && blocoInstalar()}
     ${blocoSinc()}
+    ${blocoLembretes()}
 
     <section class="bloco" aria-labelledby="h-metas">
       <h2 id="h-metas">Ciclo e metas</h2>
@@ -343,6 +369,28 @@ Object.assign(actions, {
   'sinc.desconectar': () => {
     if (!confirm('Desconectar este aparelho? Os dados continuam aqui e no GitHub. Ele só para de sincronizar.')) return false;
     desconectar();
+  },
+
+  'lembretes.ativar': async (_, botao) => {
+    botao.disabled = true;
+    try {
+      if (!(await ativar())) aviso('Sem a permissão, o app não consegue avisar. Você pode liberar depois nas configurações do navegador.');
+      else aviso('Notificações ativadas neste aparelho.');
+    } catch {
+      aviso('Este navegador não conseguiu ativar as notificações. No celular, instale o app e tente por ele.');
+    }
+  },
+  'lembretes.testar': async () => {
+    try {
+      await testarLembrete();
+    } catch {
+      aviso('Não consegui mostrar a notificação. Confira se elas estão liberadas para este site.');
+    }
+    return false;
+  },
+  'lembretes.desativar': async () => {
+    await desativar().catch(() => {});
+    aviso('Notificações desativadas neste aparelho.');
   },
 
   'config.instalar': async () => {

@@ -85,6 +85,7 @@ export const seed = () => ({
   refeicoes: [],
   medidas: [],
   revisoes: {},
+  aparelhos: {}, // inscrição de notificação de cada aparelho e a chave que assina os lembretes
   apagados: {}, // exclusões, para a sincronização não trazer de volta o que foi apagado
   timer: null,
   backupEm: null,

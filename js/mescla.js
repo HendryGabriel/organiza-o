@@ -5,7 +5,8 @@
 // senão o registro voltaria do outro aparelho.
 
 export const LISTAS = ['feitos', 'tasks', 'leads', 'videos', 'financas', 'treinos', 'refeicoes', 'medidas'];
-export const MAPAS = ['dias', 'plano', 'rotina', 'revisoes'];
+// `aparelhos` guarda a inscrição de notificação de cada aparelho e a chave que assina os lembretes (ver lembretes.js).
+export const MAPAS = ['dias', 'plano', 'rotina', 'revisoes', 'aparelhos'];
 
 const conteudo = ({ mod, ...resto }) => JSON.stringify(resto);
 const ordem = (a, b) => (a < b ? -1 : a > b ? 1 : 0);

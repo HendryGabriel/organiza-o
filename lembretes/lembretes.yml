@@ -1,0 +1,22 @@
+# Lembretes do app hendry.ia. Este arquivo vive no repositório PRIVADO de dados, em .github/workflows/lembretes.yml,
+# junto com .github/lembretes.mjs (cópia de lembretes/enviar.mjs do repositório do app).
+# Duas vezes por dia ele manda um toque de push para os aparelhos que ativaram as notificações.
+name: Lembretes
+
+on:
+  schedule:
+    # Horário de Brasília = UTC menos 3. O GitHub costuma atrasar alguns minutos.
+    - cron: '7 11 * * *' # 08:07, o que tem para hoje
+    - cron: '7 0 * * *' # 21:07, contar o dia
+  workflow_dispatch: # permite disparar à mão, para testar
+
+permissions:
+  contents: read
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - run: node .github/lembretes.mjs

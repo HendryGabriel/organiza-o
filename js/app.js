@@ -12,6 +12,7 @@ import { menu, semana, tarefas, rotina, config } from './views/mais.js';
 import { render as metricas } from './views/metricas.js';
 import { iniciar as iniciarGraficos } from './graficos.js';
 import { iniciar as iniciarSincronizacao } from './sinc.js';
+import { iniciar as iniciarLembretes } from './lembretes.js';
 import { iniciar as iniciarComponentes } from './widgets.js';
 
 const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, metricas, semana, tarefas, rotina, config };
@@ -108,5 +109,6 @@ addEventListener('appinstalled', () => {
 iniciarSincronizacao();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+iniciarLembretes();
 // Pede ao navegador para não apagar os dados quando faltar espaço.
 navigator.storage?.persist?.();
