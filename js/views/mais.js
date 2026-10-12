@@ -242,6 +242,10 @@ export function config() {
           ${campo('Calorias por dia (kcal)', html`<input name="metaKcal" inputmode="numeric" autocomplete="off" value="${s.metaKcal || ''}">`, 'Meta opcional. O app não prescreve dieta.')}
           ${campo('Proteína por dia (g)', html`<input name="metaProteina" inputmode="numeric" autocomplete="off" value="${s.metaProteina || ''}">`, 'Meta opcional.')}
         </div>
+        <div class="dupla">
+          ${campo('Cartão: dia do fechamento', html`<input name="cartaoFecha" inputmode="numeric" autocomplete="off" value="${s.cartaoFecha || ''}" placeholder="Ex.: 25…">`, 'Compra a partir desse dia entra na fatura seguinte.')}
+          ${campo('Cartão: dia do vencimento', html`<input name="cartaoVence" inputmode="numeric" autocomplete="off" value="${s.cartaoVence || ''}" placeholder="Ex.: 5…">`, 'É no mês do vencimento que a compra pesa.')}
+        </div>
         <div class="acoes"><button class="btn btn-p">Salvar metas</button></div>
       </form>
     </section>
@@ -313,6 +317,8 @@ Object.assign(actions, {
       videosSemana: inteiro(f.videosSemana) || 2,
       metaKcal: inteiro(f.metaKcal),
       metaProteina: inteiro(f.metaProteina),
+      cartaoFecha: Math.min(31, inteiro(f.cartaoFecha)),
+      cartaoVence: Math.min(31, inteiro(f.cartaoVence)),
     });
     aviso('Metas salvas.');
   },

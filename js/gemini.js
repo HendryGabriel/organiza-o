@@ -1,5 +1,6 @@
 // Chamadas à IA do Google (Gemini API), direto do navegador com a chave do próprio usuário.
 import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js';
+import { classeValida, movimentosDaIA } from './extrato.js';
 
 // A chave fica fora do estado do app para nunca entrar no backup exportado.
 const CHAVE = 'hendry.gemini';
@@ -168,8 +169,10 @@ const ESQUEMA_ASSISTENTE = {
         data: DIA,
         tipo: { type: 'STRING', enum: Object.keys(TIPOS) },
         categoria: { type: 'STRING', enum: [...Object.keys(RENDAS), ...Object.keys(GASTOS)], description: 'Fonte da receita ou categoria do gasto' },
-        valor: { type: 'NUMBER', description: 'Em reais, positivo' },
+        valor: { type: 'NUMBER', description: 'Em reais, positivo. Em compra parcelada, o total da compra' },
         descricao: TEXTO,
+        cartao: { type: 'BOOLEAN', description: 'true se foi compra no cartão de crédito' },
+        parcelas: { type: 'NUMBER', description: 'Número de parcelas no cartão; 1 se foi à vista' },
       },
       ['data', 'tipo', 'valor', 'descricao'],
     ),
@@ -191,6 +194,7 @@ Hoje é ${hojeLongo} (${hojeIso}). Tudo que não tiver outro dia dito aconteceu 
 COMO RESPONDER
 - "resposta" é obrigatória: português do Brasil, curta e direta, de 1 a 5 frases, em texto corrido. Sem título, sem markdown, sem lista com símbolos. Quando houver registros, diga em uma frase o que entendeu.
 - Use os números dos DADOS DO APP e diga de que período são ("este mês", "nos últimos 14 dias"). Se o dado não existe, diga o que falta registrar. Nunca invente número, cliente, resultado ou fato.
+- Cartão de crédito: as compras no cartão já estão em saiuPorCategoria, no mês em que a fatura é paga. O pagamento da fatura não soma de novo.
 - Dinheiro: mostre de onde veio, para onde foi e qual é o maior gasto variável. Para economizar, aponte as categorias que mais pesam ou que subiram em relação à média dos meses anteriores. Não recomende investimento nem produto financeiro.
 - Prospecção: use o funil e o gargalo, e sugira a próxima ação concreta (quem está com follow-up vencido, quantas abordagens faltam). Sem cliente fechado ainda, não existe valor por abordagem: diga isso.
 - Peso e calorias: use a tendência do peso e o saldo de calorias. São estimativas, não orientação médica nem nutricional. Se "perfilPreenchido" for false, diga que falta preencher o perfil em Corpo, aba Peso.
@@ -211,6 +215,8 @@ Cada contato já conta como ação comercial: não repita o mesmo contato em "ac
 financas: todo dinheiro que entrou ou saiu. "valor" em reais, positivo, e "descricao" curta.
 - tipo receita (entrou), com categoria: clientes (pagamento de cliente do negócio próprio), salario (emprego) ou extra (bico, venda, outra renda).
 - tipo custo (gastou), com categoria: negocio (ferramenta, anúncio, custo do negócio), moradia, mercado, comer_fora (lanche, restaurante, delivery), transporte, assinaturas, saude, lazer, compras, educacao, dividas (parcela, cartão, empréstimo) ou outros.
+- compra no cartão de crédito: tipo custo com "cartao" true. Se parcelou, "parcelas" com o número de vezes e "valor" com o total da compra. Débito, PIX e dinheiro não são cartão de crédito.
+- tipo fatura: pagou a fatura do cartão. Não é gasto novo e não tem categoria.
 - tipo imposto; tipo reserva (guardou dinheiro na reserva do Lancer); tipo retirada (tirou da reserva).
 
 tarefas: só quando ela pedir para lembrar ou anotar algo a fazer ("me lembra de", "preciso", "amanhã tenho que"). "prazo" se um dia foi dito. "minutos": 5, 30 ou 90.
@@ -233,4 +239,65 @@ export async function conversar({ texto, audio, historico = [], contexto, hojeIs
   const anteriores = historico.map((m) => ({ role: m.de === 'ia' ? 'model' : 'user', parts: [{ text: m.texto }] }));
   const saida = await gerar(parts, { responseMimeType: 'application/json', responseSchema: ESQUEMA_ASSISTENTE }, { anteriores, sistema: instrucoes(hojeLongo, hojeIso, contexto) });
   return normalizarDia(emJson(saida), hojeIso);
+}
+
+// ---------- Extrato do banco e fatura do cartão ----------
+
+const ESQUEMA_CLASSES = lista(
+  { i: { type: 'INTEGER' }, tipo: { type: 'STRING', enum: ['receita', 'custo', 'imposto', 'fatura', 'ignorar'] }, categoria: { type: 'STRING', enum: [...Object.keys(RENDAS), ...Object.keys(GASTOS)] } },
+  ['i', 'tipo'],
+);
+
+const PROMPT_CLASSES = `Você classifica movimentações de um extrato bancário brasileiro de pessoa física. Cada linha tem um número, o sentido (entrada ou saida) e a descrição que veio do banco. Devolva, para cada número, o tipo e a categoria.
+
+Entrada:
+- receita, com categoria salario (salário, folha, pagamento de empregador, 13º, férias), clientes (recebimento por serviço do negócio próprio) ou extra (venda, reembolso, outro recebimento, PIX recebido sem contexto).
+- ignorar: transferência entre contas da própria pessoa, resgate de aplicação, estorno.
+
+Saída:
+- custo, com categoria moradia (aluguel, condomínio, luz, água, gás, internet, telefone), mercado (supermercado, atacado, padaria, açougue), comer_fora (restaurante, lanchonete, bar, delivery), transporte (combustível, posto, aplicativo de corrida, ônibus, estacionamento, pedágio, oficina), assinaturas (streaming, aplicativos, mensalidades digitais), saude (farmácia, consulta, exame, plano, academia), lazer (cinema, jogos, viagem, festa), compras (loja, roupa, eletrônico, marketplace), educacao (curso, escola, livro), dividas (parcela de empréstimo, financiamento, juros, tarifa do banco, IOF), negocio (ferramenta ou serviço usado no negócio próprio) ou outros (não dá para saber, como PIX enviado para uma pessoa sem contexto).
+- imposto: DARF, DAS, IPTU, IPVA, taxa de governo.
+- fatura: pagamento de fatura de cartão de crédito.
+- ignorar: aplicação financeira, poupança, transferência para conta da própria pessoa.
+
+Use só a descrição. Sem pista, use outros (saída) ou extra (entrada). Devolva todos os números, na mesma ordem.`;
+
+const LOTE = 120;
+
+// Classifica as movimentações já lidas pelo app. Só o sentido e a descrição saem do aparelho: valores, datas e
+// saldo ficam. Descrição repetida é classificada uma vez só. `aoAvancar(feitas, total)` avisa o progresso.
+export async function classificar(movimentos, cartao, aoAvancar = () => {}) {
+  const chave = (m) => `${m.valor < 0 ? 'saida' : 'entrada'} | ${m.descricao}`;
+  const unicas = [...new Set(movimentos.map(chave))];
+  const classes = new Map();
+  for (let ini = 0; ini < unicas.length; ini += LOTE) {
+    const lote = unicas.slice(ini, ini + LOTE);
+    const pedido = `${cartao ? 'Todas as linhas abaixo são compras de uma fatura de cartão de crédito: use sempre o tipo custo.\n\n' : ''}${PROMPT_CLASSES}\n\nMOVIMENTAÇÕES:\n${lote.map((c, i) => `${i} | ${c}`).join('\n')}`;
+    const saida = await gerarJson([{ text: pedido }], ESQUEMA_CLASSES);
+    for (const c of Array.isArray(saida) ? saida : []) if (Number.isInteger(c?.i) && lote[c.i]) classes.set(lote[c.i], c);
+    aoAvancar(Math.min(ini + LOTE, unicas.length), unicas.length);
+  }
+  return movimentos.map((m) => classeValida(classes.get(chave(m)), m.valor < 0, cartao));
+}
+
+const ESQUEMA_EXTRATO = {
+  type: 'OBJECT',
+  properties: {
+    documento: { type: 'STRING', enum: ['conta', 'cartao'] },
+    vencimento: { type: 'STRING', description: 'Só em fatura de cartão: a data de vencimento, AAAA-MM-DD' },
+    movimentos: lista({ data: DIA, descricao: TEXTO, valor: { type: 'NUMBER', description: 'Em reais, sempre positivo' }, sentido: { type: 'STRING', enum: ['entrada', 'saida'] } }, ['data', 'descricao', 'valor', 'sentido']),
+  },
+  propertyOrdering: ['documento', 'vencimento', 'movimentos'],
+  required: ['documento', 'movimentos'],
+};
+
+const PROMPT_EXTRATO = `Extraia todas as movimentações deste extrato bancário ou fatura de cartão de crédito, na ordem em que aparecem.
+Para cada uma: a data (AAAA-MM-DD; se o documento só mostra dia e mês, use o ano do período do documento), a descrição exatamente como está escrita, o valor em reais (positivo) e o sentido: "saida" para débito, pagamento, compra ou tarifa; "entrada" para crédito, depósito, recebimento ou estorno.
+Não inclua linhas de saldo, totais, limites nem resumos. Não invente nem arredonde: copie os números do documento.
+Em "documento", diga se é extrato de conta ou fatura de cartão. Em fatura de cartão, compras são "saida" e pagamentos recebidos são "entrada".`;
+
+// PDF (ou arquivo que o app não soube ler): aqui a IA lê o documento inteiro, então a conferência da pessoa pesa mais.
+export async function lerExtrato({ pdf, texto }) {
+  const parts = pdf ? [{ inlineData: { mimeType: 'application/pdf', data: pdf } }, { text: PROMPT_EXTRATO }] : [{ text: `${PROMPT_EXTRATO}\n\nDOCUMENTO:\n${texto.slice(0, 200000)}` }];
+  return movimentosDaIA(await gerarJson(parts, ESQUEMA_EXTRATO));
 }

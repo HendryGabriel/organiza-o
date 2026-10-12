@@ -7,6 +7,7 @@ import { render as negocio } from './views/negocio.js';
 import { render as conteudo } from './views/conteudo.js';
 import { render as corpo } from './views/corpo.js';
 import { render as lancer } from './views/lancer.js';
+import './views/extrato.js';
 import { menu, semana, tarefas, rotina, config } from './views/mais.js';
 import { render as metricas } from './views/metricas.js';
 import { iniciar as iniciarGraficos } from './graficos.js';

@@ -84,7 +84,8 @@ function registradoHoje(d, dia) {
   const treinos = state.treinos.filter((t) => t.data === d);
   const refeicoes = state.refeicoes.filter((r) => r.data === d).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
   const feitos = state.feitos.filter((f) => f.data === d);
-  const lancamentos = state.financas.filter((l) => l.data === d);
+  // Compra parcelada aparece uma vez só, pela primeira parcela.
+  const lancamentos = state.financas.filter((l) => l.data === d && (!l.parcela || l.parcela.startsWith('1/')));
   const peso = state.medidas.filter((m) => m.data === d).at(-1);
   const kcal = somaMacros(refeicoes).kcal;
   const { metaKcal } = state.settings;
@@ -109,7 +110,7 @@ function registradoHoje(d, dia) {
             ${treinos.map((t) => linha('Treino', t.tipo || 'Treino', t.min ? `${t.min} min` : '', 'treino.abrir', t.id))}
             ${refeicoes.map((r) => linha('Refeição', r.nome, html`<b class="num">${n(r.kcal)}</b> kcal`, 'comida.abrir', r.id))}
             ${feitos.map((f) => linha(`Ação, ${AREAS[f.area] || 'Outras'}`, f.titulo, f.min ? `${f.min} min` : ''))}
-            ${lancamentos.map((l) => linha(TIPOS[l.tipo], l.descricao || TIPOS[l.tipo], dinheiro(l.valor), 'fin.abrir', l.id))}
+            ${lancamentos.map((l) => linha(TIPOS[l.tipo], l.descricao || TIPOS[l.tipo], l.parcela ? `${l.parcela.split('/')[1]}x de ${dinheiro(l.valor)}` : dinheiro(l.valor), 'fin.abrir', l.id))}
             ${peso && linha('Peso', `${peso.peso.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg`, '')}
           </ul>
           ${balanco.saldo != null && html`

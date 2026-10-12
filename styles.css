@@ -515,6 +515,17 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
 .dlg-corpo { --dlg-pad: 16px; display: grid; gap: 14px; padding: var(--dlg-pad) var(--dlg-pad) calc(var(--dlg-pad) + env(safe-area-inset-bottom)); }
 .dlg-acoes { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .dlg-acoes .perigo { margin-right: auto; }
+/* Rodapé que fica à vista enquanto a lista rola (conferência do extrato). */
+.dlg-acoes.fixo {
+  position: sticky; bottom: 0;
+  margin: 0 calc(-1 * var(--dlg-pad)) calc(-1 * var(--dlg-pad) - env(safe-area-inset-bottom));
+  padding: 12px var(--dlg-pad) calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+/* Campos que só valem para compra no cartão de crédito. */
+.so-cartao { display: none; }
+form:has([name="cartao"]:checked) .so-cartao { display: grid; }
+.barra .acoes { margin-top: 0; }
 
 /* Conversa com a assistente: falas em sequência e o campo de resposta sempre à vista no rodapé. */
 .conversa { gap: 18px; }

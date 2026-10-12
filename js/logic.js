@@ -119,6 +119,8 @@ export const TIPOS = {
   receita: 'Receita',
   custo: 'Gasto',
   imposto: 'Imposto',
+  // Pagar a fatura não é gasto novo: os gastos são as compras que estão dentro dela (ver fluxoDoMes em analise.js).
+  fatura: 'Pagamento da fatura do cartão',
   reserva: 'Aporte na reserva do Lancer',
   retirada: 'Retirada da reserva',
 };
@@ -233,7 +235,10 @@ export function normalizarDia(obj, ref) {
     financas: lista(obj?.financas)
       .map((f) => {
         const tipo = um(f?.tipo, Object.keys(TIPOS), '');
-        return { data: dia(f?.data), tipo, categoria: categoriaDe({ tipo, categoria: f?.categoria }), valor: Math.round(Math.abs(Number(f?.valor) || 0) * 100), descricao: s(f?.descricao, 120) };
+        // Cartão e parcelas só existem em gasto. O valor é o total da compra; a divisão em faturas é feita ao registrar.
+        const cartao = tipo === 'custo' && f?.cartao === true;
+        const parcelas = cartao ? Math.min(48, Math.max(1, Math.round(Number(f?.parcelas) || 1))) : 1;
+        return { data: dia(f?.data), tipo, categoria: categoriaDe({ tipo, categoria: f?.categoria }), valor: Math.round(Math.abs(Number(f?.valor) || 0) * 100), descricao: s(f?.descricao, 120), cartao, parcelas };
       })
       .filter((f) => f.tipo && f.valor > 0 && f.valor <= 1e9),
     // Tarefa pedida à assistente ("me lembra de..."): prazo só de hoje em diante.

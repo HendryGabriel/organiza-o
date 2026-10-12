@@ -78,7 +78,8 @@ async function paraWav(blob) {
   return new Uint8Array(wav.buffer);
 }
 
-function emBase64(bytes) {
+// Também usada para mandar o PDF do extrato.
+export function emBase64(bytes) {
   let binario = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(binario);

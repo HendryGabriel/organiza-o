@@ -13,7 +13,39 @@ export const mesAntes = (mes, n = 1) => {
   return mesDe(iso(d));
 };
 
-const SAIDAS = { ...GASTOS, impostos: 'Impostos' };
+const SAIDAS = { ...GASTOS, impostos: 'Impostos', cartao: 'Cartão sem detalhe' };
+
+// ---------- Cartão de crédito ----------
+// Compra no cartão pesa no mês em que a fatura é paga, não no dia da compra. Cada compra (ou parcela) guarda
+// a `fatura` (AAAA-MM) em que cai. O pagamento da fatura é outro lançamento, do tipo "fatura".
+
+// Em que mês uma compra é paga: a fatura fecha no dia `cartaoFecha` e vence no próximo dia `cartaoVence`.
+// Compra feita no próprio dia do fechamento já entra na fatura seguinte.
+// Sem os dias cadastrados vale a regra mais comum: paga no mês seguinte ao da compra.
+export function faturaDe(data, { cartaoFecha: fecha, cartaoVence: vence } = {}) {
+  const mes = mesDe(data);
+  if (!(fecha >= 1 && vence >= 1)) return mesAntes(mes, -1);
+  const fechaEm = Number(data.slice(8)) < fecha ? mes : mesAntes(mes, -1);
+  return vence > fecha ? fechaEm : mesAntes(fechaEm, -1);
+}
+
+// Compra parcelada vira uma parcela por fatura. Os centavos que não dividem certinho vão para a primeira.
+export function parcelar(valor, vezes, primeiraFatura) {
+  const cada = Math.floor(valor / vezes);
+  return [...Array(vezes)].map((_, i) => ({
+    valor: cada + (i === 0 ? valor - cada * vezes : 0),
+    fatura: mesAntes(primeiraFatura, -i),
+    parcela: vezes > 1 ? `${i + 1}/${vezes}` : '',
+  }));
+}
+
+// O que já está comprometido nas faturas depois de `mes`: parcelas e compras que ainda vão vencer.
+export function proximasFaturas(lancamentos, mes, quantas = 6) {
+  return [...Array(quantas)]
+    .map((_, i) => mesAntes(mes, -(i + 1)))
+    .map((m) => ({ mes: m, valor: total(lancamentos.filter((l) => l.tipo === 'custo' && l.cartao && l.fatura === m)) }))
+    .filter((f) => f.valor > 0);
+}
 const agrupar = (lista, nomes) => {
   const soma = {};
   for (const { chave, valor } of lista) soma[chave] = (soma[chave] || 0) + valor;
@@ -23,16 +55,36 @@ const agrupar = (lista, nomes) => {
 };
 
 // O mês em três perguntas: de onde entrou, para onde saiu e quanto sobrou.
-// `ateDia` corta o mês em um dia, para comparar o mês corrente com o mesmo trecho dos anteriores.
-export function fluxoDoMes(lancamentos, mes, ateDia = '31') {
+// `ateDia` corta o mês em um dia, para comparar o mês corrente com o mesmo trecho dos anteriores;
+// `vencimento` é o dia em que a fatura do cartão costuma ser paga.
+//
+// Cartão sem contar em dobro: o gasto do cartão no mês é o MAIOR entre o que foi pago de fatura e a soma
+// das compras lançadas naquela fatura. Compra lançada explica a fatura; o que a fatura tiver a mais do que
+// as compras lançadas aparece como "Cartão sem detalhe". Assim dá no mesmo lançar só o pagamento, só as
+// compras ou os dois.
+export function fluxoDoMes(lancamentos, mes, ateDia = '31', vencimento = 10) {
   const doMes = lancamentos.filter((l) => l.data.startsWith(mes) && l.data.slice(8) <= ateDia);
   // Receita a receber não entra: só conta o que já caiu na conta.
   const entradas = agrupar(doMes.filter((l) => l.tipo === 'receita' && l.recebido !== false).map((l) => ({ chave: categoriaDe(l), valor: l.valor })), RENDAS);
-  const saidas = agrupar(doMes.filter((l) => l.tipo === 'custo' || l.tipo === 'imposto').map((l) => ({ chave: l.tipo === 'imposto' ? 'impostos' : categoriaDe(l), valor: l.valor })), SAIDAS);
   const tipo = (t) => total(doMes.filter((l) => l.tipo === t));
+  const pago = tipo('fatura');
+  // No mês cortado, a fatura entra se já foi paga ou se o dia do vencimento já passou.
+  const temFatura = pago > 0 || String(vencimento).padStart(2, '0') <= ateDia;
+  const noCartao = temFatura ? lancamentos.filter((l) => l.tipo === 'custo' && l.cartao && l.fatura === mes) : [];
+  const detalhado = total(noCartao);
+  const semDetalhe = Math.max(0, pago - detalhado);
+  const saidas = agrupar(
+    [
+      ...doMes.filter((l) => l.tipo === 'custo' && !l.cartao).map((l) => ({ chave: categoriaDe(l), valor: l.valor })),
+      ...noCartao.map((l) => ({ chave: categoriaDe(l), valor: l.valor })),
+      ...doMes.filter((l) => l.tipo === 'imposto').map((l) => ({ chave: 'impostos', valor: l.valor })),
+      ...(semDetalhe > 0 ? [{ chave: 'cartao', valor: semDetalhe }] : []),
+    ],
+    SAIDAS,
+  );
   const entrou = total(entradas);
   const saiu = total(saidas);
-  return { mes, entradas, saidas, entrou, saiu, sobra: entrou - saiu, guardado: tipo('reserva') - tipo('retirada') };
+  return { mes, entradas, saidas, entrou, saiu, sobra: entrou - saiu, guardado: tipo('reserva') - tipo('retirada'), cartao: { pago, detalhado, semDetalhe } };
 }
 
 // Gastos que se decidem mês a mês. Moradia, parcelas, impostos e o negócio ficam de fora da lista de cortes.
@@ -41,13 +93,13 @@ const FIXOS = ['moradia', 'dividas', 'impostos', 'negocio'];
 // Onde dá para economizar: os gastos variáveis do mês, do maior para o menor, cada um comparado com a média
 // dele mesmo nos 3 meses anteriores (só os meses que têm lançamento). No mês corrente a comparação é com o
 // mesmo trecho dos outros meses, senão todo começo de mês pareceria economia.
-export function economia(lancamentos, mes, ref) {
+export function economia(lancamentos, mes, ref, vencimento = 10) {
   const ateDia = mes === mesDe(ref) ? ref.slice(8) : '31';
-  const atual = fluxoDoMes(lancamentos, mes);
+  const atual = fluxoDoMes(lancamentos, mes, '31', vencimento);
   const antes = [1, 2, 3]
     .map((n) => mesAntes(mes, n))
     .filter((m) => lancamentos.some((l) => l.data.startsWith(m)))
-    .map((m) => fluxoDoMes(lancamentos, m, ateDia));
+    .map((m) => fluxoDoMes(lancamentos, m, ateDia, vencimento));
   const linhas = atual.saidas
     .filter((s) => !FIXOS.includes(s.chave))
     .map((s) => {
@@ -203,9 +255,10 @@ const um = (v, casas = 1) => (v == null ? null : Number(v.toFixed(casas)));
 // Dinheiro em reais (não em centavos) e listas curtas, para a pergunta caber no pedido.
 export function contextoDaAssistente(state, ref = hoje()) {
   const mes = mesDe(ref);
-  const fluxo = fluxoDoMes(state.financas, mes);
-  const passado = fluxoDoMes(state.financas, mesAntes(mes));
-  const eco = economia(state.financas, mes, ref);
+  const vence = state.settings.cartaoVence || 10;
+  const fluxo = fluxoDoMes(state.financas, mes, '31', vence);
+  const passado = fluxoDoMes(state.financas, mesAntes(mes), '31', vence);
+  const eco = economia(state.financas, mes, ref, vence);
   const negocio = financas(state.financas);
   const p = prospeccaoEmDinheiro(state, ref);
   const semana = resumoSemana(state, ref);
@@ -245,6 +298,12 @@ export function contextoDaAssistente(state, ref = hoje()) {
       guardadoNaReserva: reais(fluxo.guardado),
       mesAnterior: { entrou: reais(passado.entrou), saiu: reais(passado.saiu), sobrou: reais(passado.sobra), saiuPorCategoria: emReais(passado.saidas) },
       gastosVariaveis: eco.linhas.map((l) => ({ categoria: l.nome, valor: reais(l.valor), mediaDosMesesAnteriores: l.media == null ? null : reais(l.media) })),
+      // Compras no cartão já estão dentro de saiuPorCategoria, no mês da fatura. Aqui é só o resumo da fatura.
+      cartaoDeCredito: {
+        faturaPagaNoMes: reais(fluxo.cartao.pago),
+        comprasLancadasNaFatura: reais(fluxo.cartao.detalhado),
+        proximasFaturasJaComprometidas: Object.fromEntries(proximasFaturas(state.financas, mes).map((f) => [f.mes, reais(f.valor)])),
+      },
     },
     negocio: { recebidoDeClientes: reais(negocio.recebido), aReceber: reais(negocio.aReceber), custosEImpostos: reais(negocio.custos + negocio.impostos), resultado: reais(negocio.resultado) },
     lancer: { reservado: reais(negocio.reservado), meta: metaLancer ? reais(metaLancer) : null },

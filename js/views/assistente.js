@@ -3,7 +3,7 @@
 import { state, actions, commit, registrarFeito, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js';
 import { html, icon, dataCurta, dataLonga, dinheiro, n } from '../ui.js';
 import { hoje, somaMacros, mudarEtapa, financas, AREAS, TIPOS, CATEGORIAS, FUNIL } from '../logic.js';
-import { contextoDaAssistente } from '../analise.js';
+import { contextoDaAssistente, faturaDe, parcelar } from '../analise.js';
 import { conversar, config as gemini } from '../gemini.js';
 import { gravar, parar, cancelar } from '../audio.js';
 
@@ -94,7 +94,7 @@ function itensDoPlano(p) {
     const existe = state.leads.some((l) => igual(l.empresa, c.empresa));
     itens.push({ chave: `contatos:${i}`, grupo: existe ? 'Contato' : 'Lead novo', titulo: c.empresa, detalhe: junta(c.canal, c.resumo, c.respondeu && 'respondeu', c.followUp && `próximo contato em ${dataCurta(c.followUp)}`) });
   });
-  p.financas.forEach((f, i) => itens.push({ chave: `financas:${i}`, grupo: TIPOS[f.tipo], titulo: f.descricao || CATEGORIAS[f.tipo]?.[f.categoria] || TIPOS[f.tipo], valor: dinheiro(f.valor), detalhe: junta(f.descricao !== CATEGORIAS[f.tipo]?.[f.categoria] && f.descricao && CATEGORIAS[f.tipo]?.[f.categoria], emOutroDia(f.data)) }));
+  p.financas.forEach((f, i) => itens.push({ chave: `financas:${i}`, grupo: TIPOS[f.tipo], titulo: f.descricao || CATEGORIAS[f.tipo]?.[f.categoria] || TIPOS[f.tipo], valor: dinheiro(f.valor), detalhe: junta(f.descricao !== CATEGORIAS[f.tipo]?.[f.categoria] && f.descricao && CATEGORIAS[f.tipo]?.[f.categoria], f.cartao && (f.parcelas > 1 ? `cartão em ${f.parcelas}x` : 'cartão'), emOutroDia(f.data)) }));
   p.tarefas.forEach((t, i) => itens.push({ chave: `tarefas:${i}`, grupo: 'Tarefa', titulo: t.titulo, detalhe: junta(AREAS[t.area], t.prazo && `até ${dataCurta(t.prazo)}`) }));
   if (p.peso) itens.push({ chave: 'peso:0', grupo: 'Peso', titulo: `${kg(p.peso)} kg`, detalhe: '' });
   return itens;
@@ -236,7 +236,10 @@ function aplicar(p, marcados, dito) {
     if (!marcados.has(`financas:${i}`)) return;
     // A reserva não pode ficar negativa, como no lançamento manual.
     if (f.tipo === 'retirada' && financas(state.financas).reservado < f.valor) return recusados++;
-    novo('financas', { id: uid(), tipo: f.tipo, categoria: f.categoria, valor: f.valor, data: f.data, descricao: f.descricao, cliente: '', recebido: true });
+    const base = { tipo: f.tipo, categoria: f.categoria, data: f.data, descricao: f.descricao, cliente: '', recebido: true };
+    // Compra no cartão vira uma parcela por fatura, a partir da fatura em que a compra cai.
+    if (f.cartao) for (const p of parcelar(f.valor, f.parcelas, faturaDe(f.data, state.settings))) novo('financas', { id: uid(), ...base, valor: p.valor, cartao: true, fatura: p.fatura, ...(p.parcela && { parcela: p.parcela }) });
+    else novo('financas', { id: uid(), ...base, valor: f.valor });
     contar('lançamento');
   });
   p.tarefas.forEach((t, i) => {

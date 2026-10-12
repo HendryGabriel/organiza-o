@@ -52,6 +52,9 @@ export const seed = () => ({
     altura: 0, // cm
     rotina: 'sentado',
     metaPeso: 0, // kg
+    // Cartão de crédito: dias do mês em que a fatura fecha e vence. Zero até a pessoa informar.
+    cartaoFecha: 0,
+    cartaoVence: 0,
   },
   fases: [
     { nome: 'Preparação', ate: '2026-10-18' },

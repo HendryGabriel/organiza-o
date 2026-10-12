@@ -4,7 +4,8 @@ import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheir
 import { seletor, calendario } from '../widgets.js';
 import { hoje, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js';
 import { ultimasSemanas } from '../metricas.js';
-import { fluxoDoMes, economia, prospeccaoEmDinheiro, mesDe, mesAntes } from '../analise.js';
+import { fluxoDoMes, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js';
+import { mesesPerto } from './extrato.js';
 import { linha, barrasH } from '../graficos.js';
 
 const ABAS = { placar: 'Lancer', analise: 'Análise', lancamentos: 'Lançamentos' };
@@ -13,8 +14,11 @@ const SUBTITULO = {
   analise: 'De onde vem, para onde vai e onde dá para economizar',
   lancamentos: 'Tudo que entrou e saiu',
 };
-const SINAL = { receita: '+', custo: '-', imposto: '-', reserva: '', retirada: '-' };
-const CURTO = { ...TIPOS, reserva: 'Aporte Lancer', retirada: 'Retirada Lancer' };
+const SINAL = { receita: '+', custo: '-', imposto: '-', fatura: '-', reserva: '', retirada: '-' };
+const CURTO = { ...TIPOS, fatura: 'Fatura do cartão', reserva: 'Aporte Lancer', retirada: 'Retirada Lancer' };
+const mesCurto = new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit' });
+const faturaCurta = (mes) => mesCurto.format(parseData(`${mes}-15`));
+const inteiro = (v) => Math.max(0, Math.round(Number(String(v).replace(/\D/g, '')) || 0));
 const nomeDoMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
 const umaCasa = (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
@@ -68,6 +72,13 @@ function formLancamento(l) {
         ${calendario('Data', 'data', l?.data || hoje(), { max: hoje(), obrigatorio: true })}
       </div>
       ${campo('Descrição', html`<input name="descricao" value="${l?.descricao || ''}" autocomplete="off" placeholder="${tipo === 'receita' ? 'Ex.: implantação do atendente…' : 'Ex.: almoço, internet, gasolina…'}">`)}
+      ${tipo === 'custo' && html`
+        <label class="marcar"><input type="checkbox" name="cartao" ${attr('checked', l?.cartao)}><span>No cartão de crédito</span></label>
+        <div class="dupla so-cartao">
+          ${!l?.id && campo('Parcelas', html`<input name="parcelas" inputmode="numeric" autocomplete="off" value="1">`, 'O valor acima é o total da compra.')}
+          ${seletor(l?.id ? 'Fatura paga em' : 'Primeira fatura', 'fatura', { auto: 'Automática', ...mesesPerto(mesDe(hoje()), 2, 6), ...(l?.fatura && mesesPerto(l.fatura, 0, 0)) }, l?.fatura || 'auto')}
+        </div>`}
+      ${tipo === 'fatura' && html`<small>Pagar a fatura não soma como gasto novo: os gastos são as compras que estão dentro dela. O que a fatura tiver a mais do que as compras lançadas aparece como “Cartão sem detalhe”.</small>`}
       ${tipo === 'receita' && html`
         ${campo('Cliente ou projeto', html`<input name="cliente" value="${l?.cliente || ''}" autocomplete="off">`)}
         <label class="marcar"><input type="checkbox" name="recebido" ${attr('checked', l?.recebido !== false)}><span>Receita já recebida</span></label>
@@ -141,8 +152,10 @@ function analise() {
     const nome = nomeDoMes.format(parseData(`${m}-15`));
     return [m, nome[0].toUpperCase() + nome.slice(1)];
   }));
-  const f = fluxoDoMes(state.financas, mes);
-  const e = economia(state.financas, mes, ref);
+  const vence = state.settings.cartaoVence || 10;
+  const f = fluxoDoMes(state.financas, mes, '31', vence);
+  const e = economia(state.financas, mes, ref, vence);
+  const futuras = proximasFaturas(state.financas, mes);
   const p = prospeccaoEmDinheiro(state, ref);
   const parte = (linhas, todo) => linhas.map((l) => ({ nome: l.nome, valor: l.valor, nota: pct(l.valor / todo), detalhe: `${pct(l.valor / todo)} do total` }));
   const comparado = (l) => (l.acima > 0 ? `${dinheiro(l.acima)} acima da sua média` : l.acima < 0 ? `${dinheiro(-l.acima)} abaixo da sua média` : 'igual à sua média');
@@ -167,6 +180,23 @@ function analise() {
         ${barrasH({ titulo: 'Para onde vai', sub: 'Gastos e impostos, por categoria.', linhas: parte(f.saidas, f.saiu), formato: dinheiro, colunaNota: 'Parte', vazio: 'Nenhum gasto neste mês.' })}
       </div>
     </section>
+
+    ${(f.cartao.pago > 0 || f.cartao.detalhado > 0 || futuras.length > 0) && html`
+      <section class="bloco" aria-labelledby="h-cartao">
+        <h2 id="h-cartao">Cartão de crédito</h2>
+        <dl class="stats dinheiro">
+          <div><dt>compras nesta fatura</dt><dd class="num">${dinheiroCurto(f.cartao.detalhado)}</dd></div>
+          <div><dt>fatura paga</dt><dd class="num">${dinheiroCurto(f.cartao.pago)}</dd>${f.cartao.pago === 0 && html`<dd class="sub">pagamento não lançado</dd>`}</div>
+          <div><dt>sem detalhe</dt><dd class="num">${dinheiroCurto(f.cartao.semDetalhe)}</dd></div>
+        </dl>
+        <p class="nota">Compra no cartão conta no mês em que a fatura é paga, e o pagamento da fatura não soma de novo: ele só confere com as compras lançadas.${f.cartao.semDetalhe > 0 ? ' Importe a fatura ou lance as compras para detalhar o restante.' : ''}</p>
+        ${futuras.length > 0 && html`
+          <p class="achado">Já comprometido nas próximas faturas: <b>${dinheiro(futuras.reduce((t, x) => t + x.valor, 0))}</b></p>
+          <ul class="linhas compacta">
+            ${futuras.map((x) => html`<li><span class="linha"><span class="principal">Fatura de ${faturaCurta(x.mes)}</span><span class="lado num">${dinheiro(x.valor)}</span></span></li>`)}
+          </ul>`}
+        ${!(state.settings.cartaoFecha > 0) && html`<p class="nota">Informe o dia de fechamento e de vencimento do cartão em <a href="#/config">Configurações</a> para cada compra cair na fatura certa. Sem isso, o app considera que a compra é paga no mês seguinte.</p>`}
+      </section>`}
 
     <section class="bloco" aria-labelledby="h-eco">
       <h2 id="h-eco">Onde dá para economizar</h2>
@@ -216,7 +246,10 @@ function lancamentos() {
   return html`
     <div class="barra">
       <h2>Lançamentos</h2>
-      <button class="btn btn-p" data-act="fin.novo">${icon('plus')} Novo lançamento</button>
+      <div class="acoes">
+        <button class="btn btn-s" data-act="extrato.abrir">${icon('upload-simple')} Importar extrato</button>
+        <button class="btn btn-p" data-act="fin.novo">${icon('plus')} Novo lançamento</button>
+      </div>
     </div>
     ${lista.length === 0
       ? vazio('Nada lançado ainda. Conte para a assistente o que entrou e o que você gastou, ou lance aqui.')
@@ -227,7 +260,7 @@ function lancamentos() {
               <button class="linha" data-act="fin.abrir" data-id="${l.id}">
                 <span class="principal">${l.descricao || CATEGORIAS[l.tipo]?.[categoriaDe(l)] || CURTO[l.tipo]}</span>
                 <span class="lado num">${SINAL[l.tipo]}${dinheiro(l.valor)}</span>
-                <span class="detalhe">${dataCurta(l.data)} · ${CURTO[l.tipo]}${CATEGORIAS[l.tipo] && html`, ${CATEGORIAS[l.tipo][categoriaDe(l)]}`}${l.tipo === 'receita' && l.recebido === false ? ' a receber' : ''}${l.cliente && html`, ${l.cliente}`}</span>
+                <span class="detalhe">${dataCurta(l.data)} · ${CURTO[l.tipo]}${CATEGORIAS[l.tipo] && html`, ${CATEGORIAS[l.tipo][categoriaDe(l)]}`}${l.tipo === 'receita' && l.recebido === false ? ' a receber' : ''}${l.cliente && html`, ${l.cliente}`}${l.cartao && html` · cartão, fatura de ${faturaCurta(l.fatura)}${l.parcela && html` (${l.parcela})`}`}</span>
               </button>
             </li>`)}
         </ul>`}`;
@@ -285,17 +318,26 @@ Object.assign(actions, {
     const reservaDepois = financas([...outros, { tipo: f.tipo, valor }]).reservado;
     if (reservaDepois < 0) return invalido(form.elements.valor, `Maior que a reserva. Disponível: ${dinheiro(financas(outros).reservado)}.`);
 
-    const l = atual || { id: uid() };
-    if (!atual) state.financas.push(l);
-    Object.assign(l, {
+    const base = {
       tipo: f.tipo,
       categoria: CATEGORIAS[f.tipo] ? f.categoria : '',
-      valor,
       data: f.data,
       descricao: texto(f.descricao),
       cliente: f.tipo === 'receita' ? texto(f.cliente) : atual?.cliente || '',
       recebido: f.tipo !== 'receita' || f.recebido === 'on',
-    });
+    };
+    const noCartao = f.tipo === 'custo' && f.cartao === 'on';
+    const fatura = /^\d{4}-\d{2}$/.test(f.fatura) ? f.fatura : faturaDe(f.data, state.settings);
+    if (atual) {
+      // Editar mexe só neste lançamento: em compra parcelada, cada parcela é corrigida na sua fatura.
+      Object.assign(atual, base, { valor });
+      if (noCartao) Object.assign(atual, { cartao: true, fatura });
+      else for (const k of ['cartao', 'fatura', 'parcela']) delete atual[k];
+    } else if (noCartao) {
+      const vezes = Math.min(48, Math.max(1, inteiro(f.parcelas)));
+      for (const p of parcelar(valor, vezes, fatura)) state.financas.push({ id: uid(), ...base, valor: p.valor, cartao: true, fatura: p.fatura, ...(p.parcela && { parcela: p.parcela }) });
+      if (vezes > 1) aviso(`Compra dividida em ${vezes} parcelas, da fatura de ${faturaCurta(fatura)} em diante.`);
+    } else state.financas.push({ id: uid(), ...base, valor });
     fechar();
   },
 
