@@ -1,0 +1,10 @@
+{
+  "name": "hendry-ia",
+  "private": true,
+  "type": "module",
+  "description": "Painel pessoal de execução do projeto hendry.ia. Sem build e sem dependências.",
+  "scripts": {
+    "start": "python -m http.server 5173",
+    "test": "node --test"
+  }
+}

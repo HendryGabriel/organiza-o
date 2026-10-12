@@ -1,0 +1,6 @@
+node_modules/
+.playwright-cli/
+.claude/settings.local.json
+
+# Backups exportados pelo app têm dados pessoais: nunca vão para o repositório.
+hendry-ia-backup-*.json
