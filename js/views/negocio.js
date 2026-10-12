@@ -1,9 +1,9 @@
 import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js';
 import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js';
 import { seletor, calendario } from '../widgets.js';
-import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS } from '../logic.js';
+import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS, CANAIS } from '../logic.js';
 
-const CANAIS = Object.fromEntries(['WhatsApp', 'Instagram', 'E-mail', 'Ligação', 'Presencial', 'Outro'].map((c) => [c, c]));
+const OPCOES_DE_CANAL = Object.fromEntries(CANAIS.map((c) => [c, c]));
 const FILTROS = { ativos: 'Em andamento', todos: 'Todos', ...ETAPAS };
 const CAMPOS = ['empresa', 'segmento', 'cidade', 'contato', 'origem', 'problema', 'obs', 'proximoPasso', 'followUp'];
 
@@ -28,7 +28,7 @@ function formLead(l) {
         <fieldset class="grupo">
           <legend>Registrar contato feito hoje</legend>
           <div class="dupla">
-            ${seletor('Canal', 'canal', CANAIS)}
+            ${seletor('Canal', 'canal', OPCOES_DE_CANAL)}
             ${campo('O que aconteceu', html`<input name="resumo" autocomplete="off" placeholder="Ex.: mandei a abordagem…">`)}
           </div>
           <small>Conta como ação comercial do dia e marca o lead como abordado.</small>

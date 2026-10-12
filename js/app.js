@@ -20,7 +20,7 @@ const PRINCIPAL = [
   ['negocio', 'Negócio', 'handshake'],
   ['conteudo', 'Conteúdo', 'film-slate'],
   ['corpo', 'Corpo', 'barbell'],
-  ['lancer', 'Lancer', 'gauge'],
+  ['lancer', 'Dinheiro', 'gauge'],
 ];
 const APOIO = [
   ['metricas', 'Métricas', 'chart-line-up'],
@@ -84,10 +84,9 @@ document.addEventListener('change', (e) => {
   if (el) executar(el.dataset.mudou, { ...el.dataset, valor: el.value }, el);
 });
 
-// Cronômetro opcional da tela Hoje.
+// Cronômetros da tela Hoje: o da tarefa em andamento e o da gravação do relato.
 setInterval(() => {
-  const el = document.getElementById('timer');
-  if (el) el.textContent = duracao(Date.now() - Number(el.dataset.inicio));
+  for (const el of document.querySelectorAll('[data-inicio]')) el.textContent = duracao(Date.now() - Number(el.dataset.inicio));
 }, 1000);
 
 iniciarComponentes();

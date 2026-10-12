@@ -1,7 +1,11 @@
+// Tela Hoje: o dia inteiro em uma página. Primeiro a assistente (conte o dia ou pergunte),
+// depois o que já está registrado, a tarefa sugerida e os atalhos.
 import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, n } from '../ui.js';
+import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js';
 import { seletor } from '../widgets.js';
-import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, diaSemana, AREAS } from '../logic.js';
+import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS } from '../logic.js';
+import { balancoDoDia } from '../analise.js';
+import { caixaDaAssistente } from './assistente.js';
 
 const MODOS = [
   [5, '5 min', 'Dia difícil'],
@@ -36,7 +40,7 @@ function cartao(c) {
   return html`
     <section class="card tarefa" aria-labelledby="tarefa-titulo">
       <p class="meta">${AREAS[c.area]} · ${c.min}&nbsp;min</p>
-      <h2 id="tarefa-titulo">${c.titulo}</h2>
+      <h3 id="tarefa-titulo">${c.titulo}</h3>
       <p class="motivo">${motivo(c)}</p>
       ${rodando && html`<p class="timer"><span class="num" id="timer" data-inicio="${state.timer.inicio}">${duracao(Date.now() - state.timer.inicio)}</span> em andamento</p>`}
       <div class="acoes">
@@ -57,7 +61,7 @@ function semTarefa(d) {
   const pulou = state.dias[d]?.pulos?.length;
   return html`
     <section class="card">
-      <h2>${pulou ? 'Acabaram as opções de hoje' : 'Nada cabe nesse tempo'}</h2>
+      <h3>${pulou ? 'Acabaram as opções de hoje' : 'Nada cabe nesse tempo'}</h3>
       <p class="motivo">${pulou ? 'Você trocou ou adiou tudo o que cabia.' : 'Cadastre uma tarefa curta para dias assim.'}</p>
       <div class="acoes">
         ${pulou && html`<button class="btn btn-s" data-act="hoje.recomecar">Ver a lista de novo</button>`}
@@ -75,51 +79,100 @@ export const formPlano = (p, act, extra) => html`
     <footer class="dlg-acoes"><button class="btn btn-p">Salvar plano</button></footer>
   </form>`;
 
+// Tudo que já entrou no app hoje, em uma lista só: é aqui que a pessoa vê o resultado do que contou.
+function registradoHoje(d, dia) {
+  const treinos = state.treinos.filter((t) => t.data === d);
+  const refeicoes = state.refeicoes.filter((r) => r.data === d).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+  const feitos = state.feitos.filter((f) => f.data === d);
+  const lancamentos = state.financas.filter((l) => l.data === d);
+  const peso = state.medidas.filter((m) => m.data === d).at(-1);
+  const kcal = somaMacros(refeicoes).kcal;
+  const { metaKcal } = state.settings;
+  const balanco = balancoDoDia(state, d);
+  const nada = treinos.length + refeicoes.length + feitos.length + lancamentos.length === 0 && !peso && !dia.nota;
+  const linha = (rotulo, titulo, lado, act, id) => html`
+    <li>
+      <${act ? 'button' : 'span'} class="linha" ${act && html`data-act="${act}" data-id="${id}"`}>
+        <span class="principal">${titulo}</span>
+        <span class="lado">${lado}</span>
+        <span class="detalhe">${rotulo}</span>
+      </${act ? 'button' : 'span'}>
+    </li>`;
+
+  return html`
+    <section class="bloco" aria-labelledby="h-registrado">
+      <h2 id="h-registrado" class="com-lado">Registrado hoje${refeicoes.length > 0 && html`<small>${n(kcal)}${metaKcal > 0 && html` de ${n(metaKcal)}`} kcal</small>`}</h2>
+      ${nada
+        ? html`<p class="nota">Nada ainda. Conte o seu dia para a assistente, ou use os atalhos mais abaixo.</p>`
+        : html`
+          <ul class="linhas compacta">
+            ${treinos.map((t) => linha('Treino', t.tipo || 'Treino', t.min ? `${t.min} min` : '', 'treino.abrir', t.id))}
+            ${refeicoes.map((r) => linha('Refeição', r.nome, html`<b class="num">${n(r.kcal)}</b> kcal`, 'comida.abrir', r.id))}
+            ${feitos.map((f) => linha(`Ação, ${AREAS[f.area] || 'Outras'}`, f.titulo, f.min ? `${f.min} min` : ''))}
+            ${lancamentos.map((l) => linha(TIPOS[l.tipo], l.descricao || TIPOS[l.tipo], dinheiro(l.valor), 'fin.abrir', l.id))}
+            ${peso && linha('Peso', `${peso.peso.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg`, '')}
+          </ul>
+          ${balanco.saldo != null && html`
+            <p class="nota">Até agora, ${n(balanco.comeu)} kcal para um gasto estimado de ${n(balanco.gasto)} no dia. <a href="#/corpo/medidas">Ver o balanço</a></p>`}
+          ${dia.nota && html`
+            <details class="relato">
+              ${resumo('Relato do dia')}
+              <p class="citacao">${dia.nota}</p>
+              <div class="acoes"><button class="btn btn-s" data-act="hoje.virarVideo">Virar vídeo</button></div>
+            </details>`}`}
+    </section>`;
+}
+
 export function render() {
   const d = hoje();
   const dia = state.dias[d] || {};
   const fase = faseDe(state, d);
-  const { cicloInicio, cicloFim, videosSemana, metaKcal } = state.settings;
+  const { cicloInicio, cicloFim, videosSemana } = state.settings;
   const sub = fase
     ? `${fase.nome}, até ${dataCurta(fase.ate)}`
     : d < cicloInicio
       ? `O ciclo começa em ${dataCurta(cicloInicio)}`
       : `Ciclo encerrado em ${dataCurta(cicloFim)}`;
-  const feitos = state.feitos.filter((f) => f.data === d);
+  const tarefaFeita = state.feitos.some((f) => f.data === d && /^(plano|task):/.test(f.chave || ''));
   const proxima = dia.modo ? lista(d)[0] : null;
   const s = resumoSemana(state, d);
   const prioridades = state.revisoes[somaDias(inicioSemana(d), -7)]?.prioridades;
-  const kcal = somaMacros(state.refeicoes.filter((r) => r.data === d)).kcal;
   const treinou = state.treinos.some((t) => t.data === d);
-  const diaDeTreino = state.settings.diasTreino.includes(diaSemana(d));
 
   return html`
     ${topo(maiuscula(dataLonga(d)), sub)}
 
-    <fieldset class="seg">
-      <legend>Quanto tempo você tem hoje?</legend>
-      ${MODOS.map(([v, rotulo, dica]) => html`
-        <label>
-          <input type="radio" name="modo" value="${v}" data-mudou="hoje.modo" ${attr('checked', dia.modo === v)}>
-          <span><b>${rotulo}</b><small>${dica}</small></span>
-        </label>`)}
-    </fieldset>
+    ${caixaDaAssistente()}
+    ${registradoHoje(d, dia)}
 
-    ${feitos.length > 0 && html`
-      <section class="feito" aria-label="Feito hoje">
-        <h2>${icon('check')} Dia concluído</h2>
-        <ul>${feitos.map((f) => html`<li>${f.titulo}</li>`)}</ul>
-      </section>`}
+    <section class="bloco" aria-label="Tarefa do dia">
+      <fieldset class="seg">
+        <legend>Tarefa do dia: quanto tempo você tem?</legend>
+        ${MODOS.map(([v, rotulo, dica]) => html`
+          <label>
+            <input type="radio" name="modo" value="${v}" data-mudou="hoje.modo" ${attr('checked', dia.modo === v)}>
+            <span><b>${rotulo}</b><small>${dica}</small></span>
+          </label>`)}
+      </fieldset>
+      ${dia.modo === undefined
+        ? html`<p class="dica">Escolha o tempo e aparece uma tarefa só.</p>`
+        : dia.modo === 0
+          ? html`<section class="card"><h3>Descanso registrado</h3><p class="motivo">Nada pendente hoje e nada acumula para amanhã.</p></section>`
+          : !proxima
+            ? semTarefa(d)
+            : tarefaFeita
+              ? html`<details class="mais-uma">${resumo('Tarefa de hoje feita. Fazer mais uma')}${cartao(proxima)}</details>`
+              : cartao(proxima)}
+    </section>
 
-    ${dia.modo === undefined
-      ? html`<p class="dica">Escolha o tempo e aparece uma tarefa só.</p>`
-      : dia.modo === 0
-        ? html`<section class="card"><h2>Descanso registrado</h2><p class="motivo">Nada pendente hoje e nada acumula para amanhã.</p></section>`
-        : !proxima
-          ? semTarefa(d)
-          : feitos.length
-            ? html`<details class="mais-uma">${resumo('Fazer mais uma')}${cartao(proxima)}</details>`
-            : cartao(proxima)}
+    <section class="bloco" aria-labelledby="h-atalhos">
+      <h2 id="h-atalhos">Atalhos</h2>
+      <div class="acoes atalhos">
+        <label class="btn btn-s">${icon('camera')} Foto da refeição<input class="sr" type="file" accept="image/*" capture="environment" data-mudou="comida.foto"></label>
+        ${!treinou && html`<button class="btn btn-s" data-act="treino.novo">${icon('barbell')} Registrar treino</button>`}
+        <button class="btn btn-s" data-act="fin.novo">${icon('plus')} Lançar dinheiro</button>
+      </div>
+    </section>
 
     <section class="bloco" aria-labelledby="h-semana">
       <h2 id="h-semana">Esta semana</h2>
@@ -130,32 +183,6 @@ export function render() {
       </dl>
       ${prioridades && html`<p class="prioridades"><b>Prioridades da semana</b>${prioridades}</p>`}
       <p class="mais-link"><a href="#/metricas">Ver métricas e gráficos</a></p>
-    </section>
-
-    <section class="bloco" aria-labelledby="h-corpo">
-      <h2 id="h-corpo">Corpo</h2>
-      <p class="linha-solta">
-        <span><b class="num">${n(kcal)}</b>${metaKcal > 0 && html` de ${n(metaKcal)}`}&nbsp;kcal hoje</span>
-        <span>${treinou ? 'Treino feito' : diaDeTreino ? 'Dia de treino' : 'Sem treino planejado'}</span>
-      </p>
-      <div class="acoes iguais">
-        <label class="btn btn-s">${icon('camera')} Foto da refeição<input class="sr" type="file" accept="image/*" capture="environment" data-mudou="comida.foto"></label>
-        ${!treinou && html`<button class="btn btn-s" data-act="treino.novo">${icon('barbell')} Registrar treino</button>`}
-      </div>
-    </section>
-
-    <section class="bloco" aria-labelledby="h-relato">
-      <h2 id="h-relato">Relato do dia</h2>
-      <form data-act="hoje.relato" class="pilha">
-        <label class="campo">
-          <span>O que aconteceu de verdade hoje?</span>
-          <textarea name="nota" rows="3" placeholder="Ex.: mandei 2 abordagens, ninguém respondeu ainda…">${dia.nota || ''}</textarea>
-        </label>
-        <div class="acoes">
-          <button class="btn btn-s" name="destino" value="dia">Salvar no dia</button>
-          <button class="btn btn-t" name="destino" value="video">Virar vídeo</button>
-        </div>
-      </form>
     </section>`;
 }
 
@@ -215,12 +242,10 @@ Object.assign(actions, {
     fechar();
   },
 
-  'hoje.relato': ({ nota, destino }) => {
-    nota = texto(nota);
-    if (!nota) return aviso('Escreva o relato primeiro.'), false;
-    diaDe(hoje()).nota = nota;
-    if (destino !== 'video') return aviso('Relato salvo.');
-    state.videos.push({ id: uid(), quadro: 'lancer', titulo: nota.slice(0, 60), relato: nota, status: 'relato', previsto: '', criadoEm: hoje(), pubs: {} });
+  'hoje.virarVideo': () => {
+    const nota = state.dias[hoje()]?.nota;
+    if (!nota) return false;
+    state.videos.push({ id: uid(), quadro: 'lancer', titulo: nota.split('\n')[0].slice(0, 60), relato: nota, status: 'relato', previsto: '', criadoEm: hoje(), pubs: {} });
     aviso('Vídeo criado em Conteúdo com este relato.');
   },
 });

@@ -46,6 +46,12 @@ export const seed = () => ({
     metaLancer: 0, // centavos
     metaKcal: 0,
     metaProteina: 0,
+    // Perfil para estimar o gasto de calorias. Vazio até a pessoa preencher: sem ele o app não chuta.
+    sexo: '',
+    idade: 0,
+    altura: 0, // cm
+    rotina: 'sentado',
+    metaPeso: 0, // kg
   },
   fases: [
     { nome: 'Preparação', ate: '2026-10-18' },

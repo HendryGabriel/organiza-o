@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { seed } from '../js/seed.js';
-import { num, centavos, inicioSemana, somaDias, planoDoDia, faseDe, candidatos, mudarEtapa, funil, taxa, financas, normalizarRefeicao, resumoSemana } from '../js/logic.js';
+import { num, centavos, inicioSemana, somaDias, planoDoDia, faseDe, candidatos, mudarEtapa, funil, taxa, financas, normalizarRefeicao, normalizarDia, resumoSemana } from '../js/logic.js';
 
 test('num entende o jeito brasileiro de digitar', () => {
   assert.equal(num('1.250,50'), 1250.5);
@@ -80,6 +80,11 @@ test('Lancer: só aporte registrado mexe no placar', () => {
   assert.equal(f.aReceber, 50000);
   assert.equal(f.resultado, 74000);
   assert.equal(financas([{ tipo: 'reserva', valor: 30000 }, { tipo: 'retirada', valor: 5000 }]).reservado, 25000);
+  // Salário e gasto pessoal ficam registrados, mas não entram no resultado do negócio.
+  const misto = financas([{ tipo: 'receita', valor: 100000 }, { tipo: 'receita', categoria: 'salario', valor: 400000 }, { tipo: 'custo', categoria: 'mercado', valor: 60000 }, { tipo: 'custo', valor: 10000 }]);
+  assert.equal(misto.recebido, 100000);
+  assert.equal(misto.custos, 10000);
+  assert.equal(misto.resultado, 90000);
 });
 
 test('resposta da IA é saneada antes de entrar no app', () => {
@@ -88,6 +93,56 @@ test('resposta da IA é saneada antes de entrar no app', () => {
   assert.equal(r.itens[1].kcal, 0);
   assert.equal(r.confianca, 'media');
   assert.deepEqual(normalizarRefeicao('lixo').itens, []);
+});
+
+test('relato do dia: o que a IA devolve só entra com data, número e categoria válidos', () => {
+  const hoje = '2026-03-03';
+  const d = normalizarDia(
+    {
+      relato: 'treinei perna',
+      treinos: [{ data: '2026-03-02', tipo: 'Perna', minutos: '60' }, { data: '2026-02-30', tipo: '' }, { data: '2026-01-01', tipo: 'Corrida', minutos: 99999 }],
+      refeicoes: [{ data: '2026-03-03', nome: 'Almoço', itens: [{ nome: 'Arroz', porcao: '150 g', kcal: 195, proteina: 4, carbo: 42, gordura: 0 }] }, { nome: 'Vazia', itens: [] }],
+      acoes: [{ data: '2026-03-09', titulo: 'Editei o vídeo', area: 'conteudo', minutos: 40 }, { titulo: 'Li um livro', area: 'constructor' }, { titulo: '   ' }],
+      contatos: [
+        { empresa: 'Escritório Silva', canal: 'WhatsApp', resumo: 'mandei a demo', respondeu: 'sim', proximo_contato: '2026-03-10' },
+        { empresa: 'Padaria Sol', canal: 'Pombo', respondeu: true, proximo_contato: '2026-03-01' },
+        { empresa: '' },
+      ],
+      financas: [{ tipo: 'receita', categoria: 'salario', valor: 1500.5, descricao: 'Site' }, { tipo: 'custo', categoria: 'toString', valor: -49.9 }, { tipo: 'salario', valor: 3000 }, { tipo: 'custo', valor: 0 }],
+      tarefas: [{ titulo: 'Ligar para o contador', area: 'organizacao', minutos: 30, prazo: '2026-03-06' }, { titulo: 'Sem prazo', minutos: 7, prazo: '2020-01-01' }, { titulo: '' }],
+      resposta: 'Anotei.',
+      peso: '78.44',
+    },
+    hoje,
+  );
+  // Ontem vale. Data que não existe, data antiga e data no futuro viram hoje.
+  assert.deepEqual(d.treinos, [
+    { data: '2026-03-02', tipo: 'Perna', min: 60, obs: '' },
+    { data: hoje, tipo: 'Treino', min: 0, obs: '' },
+    { data: hoje, tipo: 'Corrida', min: 600, obs: '' },
+  ]);
+  assert.equal(d.refeicoes.length, 1);
+  assert.deepEqual(d.refeicoes[0].itens[0], { nome: 'Arroz', porcao: '150 g', kcal: 195, p: 4, c: 42, g: 0 });
+  assert.deepEqual(d.acoes, [
+    { data: hoje, titulo: 'Editei o vídeo', area: 'conteudo', min: 40 },
+    { data: hoje, titulo: 'Li um livro', area: 'pessoal', min: 0 },
+  ]);
+  assert.deepEqual(d.contatos.map((c) => [c.empresa, c.canal, c.respondeu, c.followUp]), [
+    ['Escritório Silva', 'WhatsApp', false, '2026-03-10'],
+    ['Padaria Sol', 'Outro', true, ''],
+  ]);
+  // Categoria desconhecida cai na do negócio, que é a que não mexe na análise pessoal por engano.
+  assert.deepEqual(d.financas.map((f) => [f.tipo, f.categoria, f.valor]), [['receita', 'salario', 150050], ['custo', 'negocio', 4990]]);
+  assert.deepEqual(d.tarefas, [
+    { titulo: 'Ligar para o contador', area: 'organizacao', min: 30, prazo: '2026-03-06' },
+    { titulo: 'Sem prazo', area: 'pessoal', min: 30, prazo: '' },
+  ]);
+  assert.equal(d.resposta, 'Anotei.');
+  assert.equal(d.peso, 78.4);
+
+  const vazio = normalizarDia('lixo', hoje);
+  assert.deepEqual(vazio, { resposta: '', relato: '', treinos: [], refeicoes: [], acoes: [], contatos: [], financas: [], tarefas: [], peso: null });
+  assert.equal(normalizarDia({ peso: 900 }, hoje).peso, null);
 });
 
 test('semana: 1 vídeo em 3 plataformas é 1 vídeo e 3 posts', () => {

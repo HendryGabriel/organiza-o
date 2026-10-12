@@ -1,5 +1,5 @@
 // Chamadas à IA do Google (Gemini API), direto do navegador com a chave do próprio usuário.
-import { normalizarRefeicao } from './logic.js';
+import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js';
 
 // A chave fica fora do estado do app para nunca entrar no backup exportado.
 const CHAVE = 'hendry.gemini';
@@ -23,7 +23,8 @@ const ERROS = {
   429: 'Limite de uso do Gemini atingido. Espere um pouco e tente de novo.',
 };
 
-async function gerar(parts, generationConfig) {
+// `anteriores` são as falas de antes na mesma conversa; `sistema` é a instrução fixa da assistente.
+async function gerar(parts, generationConfig, { anteriores = [], sistema } = {}) {
   const { key, model } = config();
   if (!key) throw new Error('Cadastre sua chave do Gemini em Configurações para usar a IA.');
   let res;
@@ -33,7 +34,7 @@ async function gerar(parts, generationConfig) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig }),
+        body: JSON.stringify({ contents: [...anteriores, { role: 'user', parts }], generationConfig, ...(sistema && { systemInstruction: { parts: [{ text: sistema }] } }) }),
       },
     );
   } catch {
@@ -46,14 +47,14 @@ async function gerar(parts, generationConfig) {
   return saida;
 }
 
-async function gerarJson(parts, responseSchema) {
-  const saida = await gerar(parts, { responseMimeType: 'application/json', responseSchema });
+function emJson(saida) {
   try {
     return JSON.parse(saida);
   } catch {
     throw new Error('O Gemini respondeu em um formato inesperado. Tente de novo.');
   }
 }
+const gerarJson = async (parts, responseSchema) => emJson(await gerar(parts, { responseMimeType: 'application/json', responseSchema }));
 
 export const testar = () => gerar([{ text: 'Responda apenas: ok' }]);
 
@@ -142,4 +143,94 @@ export async function gerarRoteiro(relato, quadro) {
     legenda: s(r.legenda),
     cta: s(r.cta),
   };
+}
+
+// ---------- Assistente (texto ou áudio) ----------
+
+const TEXTO = { type: 'STRING' };
+const DIA = { type: 'STRING', description: 'Data do acontecimento, AAAA-MM-DD' };
+const AREA = { type: 'STRING', enum: Object.keys(AREAS) };
+const lista = (properties, required) => ({ type: 'ARRAY', items: { type: 'OBJECT', properties, required } });
+
+const ESQUEMA_ASSISTENTE = {
+  type: 'OBJECT',
+  properties: {
+    relato: { type: 'STRING', description: 'Transcrição fiel do áudio. Vazio quando a mensagem veio escrita.' },
+    treinos: lista({ data: DIA, tipo: { type: 'STRING', description: 'Nome curto: Perna, Peito e tríceps, Corrida' }, minutos: NUMERO, observacao: TEXTO }, ['data', 'tipo']),
+    refeicoes: lista({ data: DIA, nome: { type: 'STRING', description: 'Café da manhã, Almoço, Lanche, Jantar' }, itens: ESQUEMA_REFEICAO.properties.itens }, ['data', 'nome', 'itens']),
+    acoes: lista({ data: DIA, titulo: TEXTO, area: AREA, minutos: NUMERO }, ['data', 'titulo', 'area']),
+    contatos: lista(
+      { data: DIA, empresa: TEXTO, canal: { type: 'STRING', enum: CANAIS }, resumo: TEXTO, respondeu: { type: 'BOOLEAN' }, proximo_passo: TEXTO, proximo_contato: { type: 'STRING', description: 'AAAA-MM-DD, só se uma data futura foi dita' } },
+      ['data', 'empresa', 'canal', 'resumo', 'respondeu'],
+    ),
+    financas: lista(
+      {
+        data: DIA,
+        tipo: { type: 'STRING', enum: Object.keys(TIPOS) },
+        categoria: { type: 'STRING', enum: [...Object.keys(RENDAS), ...Object.keys(GASTOS)], description: 'Fonte da receita ou categoria do gasto' },
+        valor: { type: 'NUMBER', description: 'Em reais, positivo' },
+        descricao: TEXTO,
+      },
+      ['data', 'tipo', 'valor', 'descricao'],
+    ),
+    tarefas: lista({ titulo: TEXTO, area: AREA, minutos: NUMERO, prazo: { type: 'STRING', description: 'AAAA-MM-DD, se um dia foi dito' } }, ['titulo', 'area']),
+    peso: { type: 'NUMBER', nullable: true, description: 'Peso corporal em kg, se foi dito' },
+    resposta: { type: 'STRING', description: 'O que a assistente diz para a pessoa' },
+  },
+  propertyOrdering: ['relato', 'treinos', 'refeicoes', 'acoes', 'contatos', 'financas', 'tarefas', 'peso', 'resposta'],
+  required: ['treinos', 'refeicoes', 'acoes', 'contatos', 'financas', 'tarefas', 'resposta'],
+};
+
+const instrucoes = (hojeLongo, hojeIso, contexto) => `Você é a assistente pessoal que mora dentro do aplicativo hendry.ia. A pessoa fala com você por texto ou áudio, em português do Brasil, do jeito que ela fala. Você faz duas coisas, às vezes na mesma mensagem:
+
+1. REGISTRAR. Quando ela conta o que fez, comeu, gastou, recebeu ou combinou, você preenche as listas de registros. O aplicativo mostra a lista para ela conferir antes de gravar.
+2. RESPONDER. Quando ela pergunta ou pede uma análise, você responde em "resposta" usando só os DADOS DO APP no fim desta instrução.
+
+Hoje é ${hojeLongo} (${hojeIso}). Tudo que não tiver outro dia dito aconteceu hoje. "Ontem", "anteontem" e dias da semana viram a data certa, no formato AAAA-MM-DD.
+
+COMO RESPONDER
+- "resposta" é obrigatória: português do Brasil, curta e direta, de 1 a 5 frases, em texto corrido. Sem título, sem markdown, sem lista com símbolos. Quando houver registros, diga em uma frase o que entendeu.
+- Use os números dos DADOS DO APP e diga de que período são ("este mês", "nos últimos 14 dias"). Se o dado não existe, diga o que falta registrar. Nunca invente número, cliente, resultado ou fato.
+- Dinheiro: mostre de onde veio, para onde foi e qual é o maior gasto variável. Para economizar, aponte as categorias que mais pesam ou que subiram em relação à média dos meses anteriores. Não recomende investimento nem produto financeiro.
+- Prospecção: use o funil e o gargalo, e sugira a próxima ação concreta (quem está com follow-up vencido, quantas abordagens faltam). Sem cliente fechado ainda, não existe valor por abordagem: diga isso.
+- Peso e calorias: use a tendência do peso e o saldo de calorias. São estimativas, não orientação médica nem nutricional. Se "perfilPreenchido" for false, diga que falta preencher o perfil em Corpo, aba Peso.
+- Se a mensagem só conta o dia, não dê conselho que não foi pedido.
+
+COMO REGISTRAR
+Registre só o que foi dito. Não invente treino, refeição, contato, valor nem resultado: na dúvida, deixe de fora. Lista sem nada fica vazia. Pergunta não gera registro.
+
+treinos: cada treino ou atividade física (academia, corrida, futebol). "tipo" é o nome curto, como "Perna" ou "Corrida". "minutos" só se a duração foi dita; senão 0. Cargas e como a pessoa se sentiu vão em "observacao".
+
+refeicoes: cada refeição ou lanche citado. Liste os alimentos com a porção (gramas ou medida caseira) e os valores dessa porção: kcal, proteína, carboidrato e gordura em gramas, por tabelas brasileiras de composição de alimentos. Sem quantidade dita, use uma porção comum de adulto.
+
+acoes: o que a pessoa fez pelo próprio negócio ou pela vida: gravou ou editou vídeo, trabalhou na demo, pesquisou empresas, estudou, organizou as contas. "titulo" curto, do jeito que ela diria. "area": clientes (prospecção, proposta, reunião), produto (construir o que vende), conteudo (gravar, editar, publicar), revisao (revisão da semana), organizacao (contas, documentos, planejamento), pessoal (estudo, saúde, casa), sistema (ajustes no próprio aplicativo e em ferramentas). "minutos" só se foi dito; senão 0.
+
+contatos: cada conversa com uma empresa ou pessoa que pode virar cliente, quando o nome foi dito. Se o nome já está em prospeccao.leads nos DADOS DO APP, escreva exatamente como está lá. "respondeu" é true só se o outro lado respondeu. "proximo_contato" só se uma data futura foi dita.
+Cada contato já conta como ação comercial: não repita o mesmo contato em "acoes". Abordagens sem nome ("mandei 3 mensagens") viram uma ação só, em clientes, com a quantidade no título.
+
+financas: todo dinheiro que entrou ou saiu. "valor" em reais, positivo, e "descricao" curta.
+- tipo receita (entrou), com categoria: clientes (pagamento de cliente do negócio próprio), salario (emprego) ou extra (bico, venda, outra renda).
+- tipo custo (gastou), com categoria: negocio (ferramenta, anúncio, custo do negócio), moradia, mercado, comer_fora (lanche, restaurante, delivery), transporte, assinaturas, saude, lazer, compras, educacao, dividas (parcela, cartão, empréstimo) ou outros.
+- tipo imposto; tipo reserva (guardou dinheiro na reserva do Lancer); tipo retirada (tirou da reserva).
+
+tarefas: só quando ela pedir para lembrar ou anotar algo a fazer ("me lembra de", "preciso", "amanhã tenho que"). "prazo" se um dia foi dito. "minutos": 5, 30 ou 90.
+
+peso: o peso corporal em kg, se foi dito.
+
+relato: se a mensagem foi um áudio, a transcrição fiel do que foi dito. Se foi texto, vazio.
+
+CORREÇÕES
+Suas falas anteriores na conversa podem terminar com uma nota entre colchetes. Em "[proposta ainda não registrada]", se ela corrigir algo, devolva de novo TODOS os registros daquela proposta, já corrigidos. O que está marcado como "[registrado]" já está no app: não repita.
+
+O dia a dia do emprego fixo não vira registro: nada de tarefas, clientes ou dados do empregador. O salário recebido entra em financas.
+
+DADOS DO APP (JSON):
+${JSON.stringify(contexto)}`;
+
+// `audio` é um WAV em base64 (ver audio.js). `historico` são as falas anteriores desta conversa: [{ de: 'voce' | 'ia', texto }].
+export async function conversar({ texto, audio, historico = [], contexto, hojeIso, hojeLongo }) {
+  const parts = audio ? [{ inlineData: { mimeType: 'audio/wav', data: audio } }, { text: 'Mensagem em áudio.' }] : [{ text: texto }];
+  const anteriores = historico.map((m) => ({ role: m.de === 'ia' ? 'model' : 'user', parts: [{ text: m.texto }] }));
+  const saida = await gerar(parts, { responseMimeType: 'application/json', responseSchema: ESQUEMA_ASSISTENTE }, { anteriores, sistema: instrucoes(hojeLongo, hojeIso, contexto) });
+  return normalizarDia(emJson(saida), hojeIso);
 }

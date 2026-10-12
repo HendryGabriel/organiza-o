@@ -168,10 +168,9 @@ export const rotina = () => html`
 
 // ---------- Configurações ----------
 
-// Links do GitHub já preenchidos: o repositório privado e um token que só enxerga esse repositório.
-const DONO = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '';
-const LINK_REPO = `https://github.com/new?name=organiza-o-dados&visibility=private&description=${encodeURIComponent('Dados do app hendry.ia (sincronização entre aparelhos)')}`;
-const LINK_TOKEN = `https://github.com/settings/personal-access-tokens/new?name=${encodeURIComponent(`hendry.ia ${APARELHO}`)}&description=${encodeURIComponent('Lê e grava só o repositório de dados do app')}&expires_in=366&contents=write`;
+// O repositório privado dos dados já existe. O link do token vem preenchido; 365 dias é o máximo que o GitHub aceita.
+const REPO_DADOS = 'HendryGabriel/organiza-o-dados';
+const LINK_TOKEN = `https://github.com/settings/personal-access-tokens/new?name=hendry.ia&description=${encodeURIComponent('Lê e grava só o repositório de dados do app')}&expires_in=365&contents=write`;
 
 function blocoSinc() {
   const { repo } = sinc();
@@ -190,17 +189,13 @@ function blocoSinc() {
           <p class="nota">Celular e computador com os mesmos dados. Eles ficam em um repositório privado do seu GitHub: só você tem acesso.</p>
           <ol class="passos">
             <li>
-              <span>Crie o repositório privado. Só na primeira vez, e já vem preenchido.</span>
-              <a class="btn btn-s" href="${LINK_REPO}" target="_blank" rel="noopener">Criar repositório</a>
-            </li>
-            <li>
-              <span>Crie um token para este aparelho. Em “Repository access”, escolha “Only select repositories” e marque <b>organiza-o-dados</b>. Depois, “Generate token”.</span>
+              <span>Se ainda não tem um token: em “Repository access”, escolha “Only select repositories” e marque <b>organiza-o-dados</b>. Depois, “Generate token”.</span>
               <a class="btn btn-s" href="${LINK_TOKEN}" target="_blank" rel="noopener">Criar token</a>
             </li>
-            <li><span>Copie o token e cole aqui. No outro aparelho, repita os passos 2 e 3.</span></li>
+            <li><span>Cole o token aqui. O mesmo token serve para o celular e para o computador.</span></li>
           </ol>
           <form class="pilha" data-act="sinc.conectar">
-            ${campo('Repositório', html`<input name="repo" required value="${repo || (DONO && `${DONO}/organiza-o-dados`)}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="usuario/organiza-o-dados…">`)}
+            ${campo('Repositório', html`<input name="repo" required value="${repo || REPO_DADOS}" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="usuario/organiza-o-dados…">`)}
             ${campo('Token', html`<input type="password" name="token" required autocomplete="off" spellcheck="false" placeholder="github_pat_…">`, 'Fica só neste aparelho. Não entra no backup nem vai para a nuvem.')}
             <div class="acoes"><button class="btn btn-p">Ligar sincronização</button></div>
           </form>`}
@@ -262,7 +257,7 @@ export function config() {
           <button type="button" class="btn btn-s" data-act="config.testar" ${attr('disabled', !g.key)}>Testar conexão</button>
           ${g.key && html`<button type="button" class="btn btn-t perigo" data-act="config.removerChave">Remover chave</button>`}
         </div>
-        <small>Usada na foto da refeição e no roteiro de vídeo. No plano gratuito do Google, o conteúdo enviado pode ser usado para melhorar os produtos deles.</small>
+        <small>Usada pela assistente (texto e áudio), na foto da refeição e no roteiro de vídeo. Para responder, a assistente recebe o que você contou e um resumo dos seus números: semana, dinheiro por categoria, nomes dos leads e peso. No plano gratuito do Google, o conteúdo enviado pode ser usado para melhorar os produtos deles.</small>
       </form>
     </section>
 

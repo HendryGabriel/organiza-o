@@ -117,22 +117,45 @@ export const taxa = (parte, todo) => (todo > 0 ? parte / todo : null);
 
 export const TIPOS = {
   receita: 'Receita',
-  custo: 'Custo',
+  custo: 'Gasto',
   imposto: 'Imposto',
   reserva: 'Aporte na reserva do Lancer',
   retirada: 'Retirada da reserva',
 };
 
+// De onde o dinheiro vem e para onde vai. Salário e gasto pessoal entram na análise do mês,
+// nunca no placar do Lancer nem no resultado do negócio: esses só olham para "clientes" e "negocio".
+export const RENDAS = { clientes: 'Clientes', salario: 'Salário', extra: 'Renda extra' };
+export const GASTOS = {
+  negocio: 'Negócio',
+  moradia: 'Moradia',
+  mercado: 'Mercado',
+  comer_fora: 'Comer fora',
+  transporte: 'Transporte',
+  assinaturas: 'Assinaturas',
+  saude: 'Saúde',
+  lazer: 'Lazer',
+  compras: 'Compras',
+  educacao: 'Educação',
+  dividas: 'Dívidas e parcelas',
+  outros: 'Outros',
+};
+export const CATEGORIAS = { receita: RENDAS, custo: GASTOS };
+const PADRAO = { receita: 'clientes', custo: 'negocio' };
+// Lançamento antigo não tem categoria: antes só existia dinheiro do negócio. Imposto e reserva não têm categoria.
+export const categoriaDe = (l) => (CATEGORIAS[l.tipo] ? (Object.hasOwn(CATEGORIAS[l.tipo], l.categoria) ? l.categoria : PADRAO[l.tipo]) : '');
+const doNegocio = (l) => categoriaDe(l) === PADRAO[l.tipo];
+
 // O placar só anda com aporte registrado: receber não é reservar, e "a receber" não conta em lugar nenhum.
 export function financas(lancamentos) {
   const soma = (tipo, filtro = () => true) =>
     lancamentos.filter((l) => l.tipo === tipo && filtro(l)).reduce((s, l) => s + l.valor, 0);
-  const recebido = soma('receita', (l) => l.recebido !== false);
-  const custos = soma('custo');
+  const recebido = soma('receita', (l) => l.recebido !== false && doNegocio(l));
+  const custos = soma('custo', doNegocio);
   const impostos = soma('imposto');
   return {
     recebido,
-    aReceber: soma('receita', (l) => l.recebido === false),
+    aReceber: soma('receita', (l) => l.recebido === false && doNegocio(l)),
     custos,
     impostos,
     resultado: recebido - custos - impostos,
@@ -161,6 +184,63 @@ export function normalizarRefeicao(obj) {
     itens,
     confianca: ['baixa', 'media', 'alta'].includes(obj?.confianca) ? obj.confianca : 'media',
     observacao: String(obj?.observacao || '').slice(0, 300),
+  };
+}
+
+// ---------- Relato do dia ----------
+
+export const CANAIS = ['WhatsApp', 'Instagram', 'E-mail', 'Ligação', 'Presencial', 'Outro'];
+
+// O que a assistente devolve é entrada externa, como a refeição: só chega à tela de conferência
+// o que tiver data, número e categoria que o app reconhece.
+export function normalizarDia(obj, ref) {
+  const s = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const lista = (v) => (Array.isArray(v) ? v : []).slice(0, 20);
+  const minutos = (v) => Math.min(600, Math.max(0, Math.round(Number(v) || 0)));
+  const um = (v, opcoes, padrao) => (opcoes.includes(v) ? v : padrao);
+  const data = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && iso(parseData(v)) === v;
+  // O relato é sobre hoje ou, no máximo, a última semana ("ontem treinei"). Fora disso, vale hoje.
+  const dia = (v) => (data(v) && v >= somaDias(ref, -7) && v <= ref ? v : ref);
+  // Próximo contato é o contrário: só no futuro, até um ano à frente.
+  const adiante = (v) => (data(v) && v > ref && v <= somaDias(ref, 365) ? v : '');
+  const peso = Number(obj?.peso);
+
+  return {
+    resposta: s(obj?.resposta, 2000),
+    relato: s(obj?.relato, 4000),
+    treinos: lista(obj?.treinos).map((t) => ({ data: dia(t?.data), tipo: s(t?.tipo, 60) || 'Treino', min: minutos(t?.minutos), obs: s(t?.observacao, 300) })),
+    refeicoes: lista(obj?.refeicoes)
+      .map((r) => {
+        const { nome, itens } = normalizarRefeicao(r);
+        return { data: dia(r?.data), nome, itens: itens.slice(0, 20) };
+      })
+      .filter((r) => r.itens.length > 0),
+    acoes: lista(obj?.acoes)
+      .map((a) => ({ data: dia(a?.data), titulo: s(a?.titulo, 120), area: um(a?.area, ORDEM, 'pessoal'), min: minutos(a?.minutos) }))
+      .filter((a) => a.titulo),
+    contatos: lista(obj?.contatos)
+      .map((c) => ({
+        data: dia(c?.data),
+        empresa: s(c?.empresa, 80),
+        canal: um(c?.canal, CANAIS, 'Outro'),
+        resumo: s(c?.resumo, 300),
+        respondeu: c?.respondeu === true,
+        proximoPasso: s(c?.proximo_passo, 160),
+        followUp: adiante(c?.proximo_contato),
+      }))
+      .filter((c) => c.empresa),
+    // A IA manda reais; o app guarda centavos. Valor zerado ou absurdo não vira lançamento.
+    financas: lista(obj?.financas)
+      .map((f) => {
+        const tipo = um(f?.tipo, Object.keys(TIPOS), '');
+        return { data: dia(f?.data), tipo, categoria: categoriaDe({ tipo, categoria: f?.categoria }), valor: Math.round(Math.abs(Number(f?.valor) || 0) * 100), descricao: s(f?.descricao, 120) };
+      })
+      .filter((f) => f.tipo && f.valor > 0 && f.valor <= 1e9),
+    // Tarefa pedida à assistente ("me lembra de..."): prazo só de hoje em diante.
+    tarefas: lista(obj?.tarefas)
+      .map((t) => ({ titulo: s(t?.titulo, 120), area: um(t?.area, ORDEM, 'pessoal'), min: um(Number(t?.minutos), [5, 30, 90], 30), prazo: t?.prazo === ref ? ref : adiante(t?.prazo) }))
+      .filter((t) => t.titulo),
+    peso: peso >= 20 && peso <= 400 ? Math.round(peso * 10) / 10 : null,
   };
 }
 

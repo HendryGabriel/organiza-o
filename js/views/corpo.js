@@ -1,12 +1,13 @@
 import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js';
 import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js';
-import { calendario } from '../widgets.js';
+import { seletor, calendario } from '../widgets.js';
 import { hoje, somaDias, inicioSemana, diaSemana, somaMacros, num } from '../logic.js';
+import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS } from '../analise.js';
 import { reduzirFoto, analisarRefeicao } from '../gemini.js';
 import { ultimasSemanas, kcalPorDia } from '../metricas.js';
 import { barras, linha } from '../graficos.js';
 
-const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Medidas' };
+const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Peso' };
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const SEMANA = [1, 2, 3, 4, 5, 6, 0]; // segunda primeiro
@@ -130,7 +131,7 @@ function formRefeicao(r) {
       ${calendario('Data', 'data', r?.data || diaEscolhido || hoje(), { max: hoje(), obrigatorio: true })}
       ${r?.itens?.length > 0 && html`
         <section>
-          <h3>Itens da foto</h3>
+          <h3>Itens</h3>
           <ul class="historico">${r.itens.map((i) => html`<li><b>${i.nome}</b> ${i.porcao} · ${n(i.kcal)} kcal</li>`)}</ul>
         </section>`}
       <footer class="dlg-acoes">
@@ -229,7 +230,7 @@ function comida() {
     <section class="bloco" aria-labelledby="h-refeicoes">
       <h2 id="h-refeicoes">Refeições de ${d === hoje() ? 'hoje' : dataMedia(d)}</h2>
       ${doDia.length === 0
-        ? vazio('Nada registrado neste dia. Tire uma foto do prato e a IA estima as calorias.')
+        ? vazio('Nada registrado neste dia. Tire uma foto do prato ou conte para a assistente o que comeu: a IA estima as calorias.')
         : html`
           <ul class="linhas">
             ${doDia.map((r) => html`
@@ -262,12 +263,23 @@ function comida() {
 // ---------- Medidas ----------
 
 function medidas() {
+  const ref = hoje();
+  const s = state.settings;
   const lista = [...state.medidas].sort((a, b) => b.data.localeCompare(a.data));
   const [atual] = lista;
   const primeira = lista.at(-1);
   const delta = atual && primeira !== atual ? atual.peso - primeira.peso : null;
   const kg = (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
   const grafico = lista.slice(0, 20).reverse(); // as 20 medidas mais recentes, em ordem de data
+
+  // Balanço: o que o peso mostra na prática e o que os registros de comida e treino estimam.
+  const t = tendencia(state.medidas, ref);
+  const dia = balancoDoDia(state, ref);
+  const q = balancoDoPeriodo(state, ref, 14);
+  const chegada = chegadaNaMeta(t, s.metaPeso, ref);
+  const perfil = gastoBase(s, 70) != null; // os dados do perfil estão preenchidos, com ou sem peso registrado
+  const gastoRef = q.gasto ?? dia.gasto;
+  const comSinal = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}`;
 
   return html`
     ${atual && html`
@@ -284,7 +296,75 @@ function medidas() {
       ${campo('Observação', html`<input name="obs" autocomplete="off" placeholder="Ex.: em jejum, pela manhã…">`)}
       <div class="acoes"><button class="btn btn-p">Registrar peso</button></div>
     </form>
-    <p class="nota">Registre quando fizer sentido. Não precisa ser todo dia.</p>
+    <p class="nota">Registre quando fizer sentido. Uma vez por semana, no mesmo horário, já mostra a tendência.</p>
+
+    <section class="bloco" aria-labelledby="h-balanco">
+      <h2 id="h-balanco">Balanço: peso e calorias</h2>
+      ${t
+        ? html`
+          <p class="achado"><b class="num">${comSinal(t.kgPorSemana)} kg</b> por semana</p>
+          <p class="nota">Pelas ${t.medidas} medidas de ${dataCurta(t.de)} a ${dataCurta(t.ate)}. ${Math.abs(t.kcalPorDia) < 50
+            ? 'Na prática, o peso está estável.'
+            : t.kcalPorDia < 0
+              ? `Na prática, você está em déficit de cerca de ${n(-t.kcalPorDia)} kcal por dia.`
+              : `Na prática, está sobrando cerca de ${n(t.kcalPorDia)} kcal por dia.`}</p>`
+        : html`<p class="nota">Com duas medidas de peso separadas por pelo menos uma semana, aqui aparece se você está perdendo ou ganhando na prática.</p>`}
+      ${chegada && html`
+        <p class="nota">${chegada.falta === 0
+          ? `Você está na meta de ${kg(s.metaPeso)} kg.`
+          : chegada.data
+            ? `Faltam ${kg(Math.abs(chegada.falta))} kg para a meta de ${kg(s.metaPeso)} kg. Nesse ritmo, chega por volta de ${dataCurta(chegada.data)}.`
+            : `Faltam ${kg(Math.abs(chegada.falta))} kg para a meta de ${kg(s.metaPeso)} kg, mas nesse ritmo o peso não chega lá.`}</p>`}
+      ${t && t.kgPorSemana < -0.01 * t.atual && html`<p class="nota">Perder mais de 1% do peso por semana costuma custar músculo e disposição. Sem acompanhamento profissional, vale ir mais devagar.</p>`}
+
+      ${perfil && q.saldo != null
+        ? html`
+          <dl class="stats">
+            <div><dt>comeu por dia</dt><dd class="num">${n(q.comeu)}</dd></div>
+            <div><dt>gastou por dia</dt><dd class="num">${n(q.gasto)}</dd></div>
+            <div><dt>${q.saldo < 0 ? 'déficit por dia' : 'sobra por dia'}</dt><dd class="num">${n(Math.abs(q.saldo))}</dd></div>
+          </dl>
+          <p class="nota">Em kcal, pela média ${q.registrados === 1 ? 'do único dia' : `dos ${q.registrados} dias`} com refeição registrada nos últimos 14, sem contar hoje. O gasto soma repouso, rotina e treinos.</p>`
+        : html`<p class="nota">${perfil
+          ? 'Registre as refeições de um dia inteiro (pode ser contando para a assistente) e aqui aparece o saldo de calorias.'
+          : 'Preencha o perfil abaixo e o app estima quanto você gasta por dia, para comparar com o que você come.'}</p>`}
+      ${dia.gasto != null && html`
+        <p class="nota">Hoje: ${dia.comeu != null ? `${n(dia.comeu)} kcal até agora` : 'nenhuma refeição registrada'}, para um gasto estimado de ${n(dia.gasto)} kcal${dia.treino > 0 ? ` (${n(dia.treino)} do treino)` : ''}.</p>`}
+    </section>
+
+    ${gastoRef != null && html`
+      <section class="bloco">
+        ${barras({
+          titulo: 'Calorias e gasto nos últimos 14 dias',
+          sub: 'Barra abaixo da linha tracejada é dia de déficit.',
+          rotulos: q.dias.map((x) => x.data.slice(8)),
+          longos: q.dias.map((x) => dataMedia(x.data)),
+          series: [{ nome: 'Calorias', valores: q.dias.map((x) => x.comeu) }],
+          formato: (v) => `${n(v)} kcal`,
+          eixo: compacto,
+          inteiro: false,
+          meta: { valor: gastoRef, rotulo: `gasto ${n(gastoRef)}` },
+          destaque: 'hoje',
+          vazio: 'Nenhuma refeição registrada nos últimos 14 dias.',
+        })}
+      </section>`}
+
+    <details class="bloco" ${attr('open', !perfil)}>
+      ${resumo('Perfil para a conta de calorias')}
+      <form class="pilha" data-act="corpo.perfil">
+        <div class="dupla">
+          ${seletor('Sexo (entra na fórmula)', 'sexo', { m: 'Masculino', f: 'Feminino' }, s.sexo, { vazio: 'Escolher' })}
+          ${campo('Idade', html`<input name="idade" inputmode="numeric" autocomplete="off" value="${s.idade || ''}" placeholder="Ex.: 28…">`)}
+        </div>
+        <div class="dupla">
+          ${campo('Altura (cm)', html`<input name="altura" inputmode="decimal" autocomplete="off" value="${s.altura || ''}" placeholder="Ex.: 178…">`)}
+          ${campo('Meta de peso (kg)', html`<input name="metaPeso" inputmode="decimal" autocomplete="off" value="${s.metaPeso ? kg(s.metaPeso) : ''}" placeholder="Opcional…">`)}
+        </div>
+        ${seletor('Rotina fora do treino', 'rotina', ROTINAS, ROTINAS[s.rotina] ? s.rotina : 'sentado')}
+        <div class="acoes"><button class="btn btn-p">Salvar perfil</button></div>
+        <small>O gasto é uma estimativa (fórmula de Mifflin-St Jeor, rotina e duração dos treinos). Serve de referência, não de orientação médica ou nutricional.</small>
+      </form>
+    </details>
 
     ${lista.length > 1 && html`
       <section class="bloco">
@@ -436,5 +516,18 @@ Object.assign(actions, {
   'medida.excluir': ({ id }) => {
     if (!confirm('Excluir esta medida?')) return false;
     state.medidas = state.medidas.filter((m) => m.id !== id);
+  },
+  'corpo.perfil': (f, form) => {
+    const idade = inteiro(f.idade);
+    let altura = num(f.altura);
+    if (altura > 0 && altura < 3) altura *= 100; // quem digita 1,78 quis dizer 178 cm
+    altura = Math.round(altura || 0);
+    const meta = texto(f.metaPeso) ? num(f.metaPeso) : 0;
+    if (!['m', 'f'].includes(f.sexo)) return invalido(form.elements.sexo, 'Escolha uma opção.');
+    if (!(idade >= 10 && idade <= 100)) return invalido(form.elements.idade, 'Idade em anos, como 28.');
+    if (!(altura >= 100 && altura <= 230)) return invalido(form.elements.altura, 'Altura em centímetros, como 178.');
+    if (!(meta >= 0 && meta < 400)) return invalido(form.elements.metaPeso, 'Use um número como 75.');
+    Object.assign(state.settings, { sexo: f.sexo, idade, altura, rotina: ROTINAS[f.rotina] ? f.rotina : 'sentado', metaPeso: meta });
+    aviso('Perfil salvo.');
   },
 });

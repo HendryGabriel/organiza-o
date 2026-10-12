@@ -262,18 +262,40 @@ details .pilha { padding-top: 4px; }
 
 /* ---------- Tela Hoje ---------- */
 
+/* Assistente: a caixa do topo. A conversa abre no diálogo (ver ".conversa"). */
+.assistente h2 { margin-bottom: 10px; }
+.assistente textarea { min-height: 96px; }
+.assistente .acoes .btn-p, .assistente .acoes .btn-s { flex: 1 1 150px; min-height: 48px; }
+/* Perguntas prontas em uma linha só, que rola de lado no celular. */
+.assistente .sugestoes { flex-wrap: nowrap; margin: 0 -16px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
+.assistente .sugestoes::-webkit-scrollbar { display: none; }
+.assistente .sugestoes button { flex: none; white-space: nowrap; }
+.gravando { display: grid; gap: 4px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.gravando p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.gravando .num { font-size: 1.75rem; line-height: 1; color: var(--accent-ink); }
+.rec { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+
+.com-lado { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.com-lado small { font-weight: 400; white-space: nowrap; }
+.relato summary { color: var(--body); font-weight: 400; }
+.citacao { white-space: pre-line; overflow-wrap: anywhere; }
+.relato .acoes { margin-top: 12px; }
+.atalhos .btn { flex: 1 1 150px; padding: 0 10px; }
+.nota a { color: var(--body); }
+/* Uma frase com o número que importa na frente: leitura de uma análise. */
+.achado { margin-top: 12px; color: var(--ink); }
+.achado .num { margin-right: 6px; font-size: 1.75rem; line-height: 1.1; }
+.achado + .nota { margin-top: 4px; }
+
 .dica { margin: 12px 0; color: var(--mute); }
 .tarefa .meta { margin-bottom: 6px; color: var(--mute); font-size: .875rem; }
-.tarefa h2 { font-size: 1.5rem; line-height: 1.2; letter-spacing: -.01em; }
+.tarefa h3 { font-size: 1.5rem; line-height: 1.2; letter-spacing: -.01em; }
 .motivo { margin-top: 8px; }
 .timer { margin-top: 12px; color: var(--mute); }
 .timer .num { margin-right: 6px; font-size: 1.75rem; color: var(--accent-ink); }
 .tarefa .acoes .btn { flex: 1 1 140px; min-height: 48px; }
 .acoes-sec { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 -8px -12px; }
 
-.feito { margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-lg); }
-.feito h2 { display: flex; align-items: center; gap: 8px; color: var(--ok); }
-.feito ul { margin: 8px 0 0; padding-left: 28px; }
 .mais-uma .card { margin-top: 4px; }
 
 .prioridades { margin-top: 16px; white-space: pre-line; }
@@ -353,7 +375,7 @@ button.linha:hover .principal, a.linha:hover .principal { color: var(--accent-in
 .tira li { display: grid; justify-items: center; gap: 2px; padding: 8px 0; border: 1px solid transparent; border-radius: var(--r); color: var(--mute); font-size: .75rem; }
 .tira b { font: 600 1.25rem/1.15 var(--display); font-stretch: 75%; color: var(--body); }
 .tira .plano { border-color: var(--line-forte); }
-.tira .feito { margin: 0; background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.tira .feito { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .tira .feito b { color: var(--bg); }
 .tira .hoje:not(.feito) > span:first-child { color: var(--accent-ink); font-weight: 700; }
 
@@ -490,9 +512,25 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
   background: var(--surface); border-bottom: 1px solid var(--line);
 }
 .dlg-topo h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dlg-corpo { display: grid; gap: 14px; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+.dlg-corpo { --dlg-pad: 16px; display: grid; gap: 14px; padding: var(--dlg-pad) var(--dlg-pad) calc(var(--dlg-pad) + env(safe-area-inset-bottom)); }
 .dlg-acoes { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .dlg-acoes .perigo { margin-right: auto; }
+
+/* Conversa com a assistente: falas em sequência e o campo de resposta sempre à vista no rodapé. */
+.conversa { gap: 18px; }
+.fala { display: grid; gap: 4px; scroll-margin-top: 72px; outline: none; }
+.fala > b { color: var(--mute); font-size: .8125rem; font-weight: 400; }
+.fala > p { white-space: pre-line; overflow-wrap: anywhere; }
+.fala.ia > p:not(.nota, .erro) { color: var(--ink); }
+.fala > .pilha { margin-top: 8px; }
+.responder {
+  position: sticky; bottom: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+  margin: 0 calc(-1 * var(--dlg-pad)) calc(-1 * var(--dlg-pad) - env(safe-area-inset-bottom));
+  padding: 12px var(--dlg-pad) calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.conversa .nova { justify-self: end; margin: -8px -8px -14px 0; }
 
 #toast {
   inset: auto 16px calc(var(--nav) + env(safe-area-inset-bottom) + 12px);
@@ -501,6 +539,14 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
   border: 0; border-radius: var(--r);
   font-weight: 600; text-align: center;
 }
+/* Só quando aberto: um popover fechado precisa continuar com o display: none do navegador. */
+#toast:popover-open { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 12px; }
+.toast-acao {
+  min-height: 44px; margin: -12px -8px -12px 0; padding: 0 8px;
+  background: none; border: 0; border-radius: var(--r);
+  color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.toast-acao:focus-visible { outline-color: currentColor; }
 
 /* ---------- Movimento: só feedback, e nada some se a animação não rodar ---------- */
 
@@ -509,6 +555,7 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
   .pop:popover-open { animation: sobe .16s cubic-bezier(.16, 1, .3, 1); }
   .giros .ponteiro { animation: varre .9s cubic-bezier(.2, .8, .2, 1); }
   .esqueleto i { animation: pulsa 1.2s ease-in-out infinite alternate; }
+  .rec { animation: pulsa .8s ease-in-out infinite alternate; }
 }
 @keyframes sobe { from { transform: translateY(16px); } }
 @keyframes varre { from { transform: rotate(0deg); } }
@@ -544,7 +591,7 @@ dialog::backdrop { background: rgb(0 0 0 / .6); }
 @media (min-width: 640px) {
   dialog { margin: auto; border-radius: var(--r-lg); }
   .funil { grid-template-columns: repeat(5, 1fr); }
-  .dlg-corpo { padding: 20px; }
+  .dlg-corpo { --dlg-pad: 20px; }
 }
 
 @media (min-width: 900px) {

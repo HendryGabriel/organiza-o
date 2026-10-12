@@ -114,8 +114,11 @@ export const uid = () => Date.now().toString(36) + Math.random().toString(36).sl
 export const texto = (v) => String(v ?? '').trim();
 
 // Tudo que conta como ação concluída passa por aqui; a semana é contada a partir desta lista.
-export function registrarFeito({ chave, titulo, area, min }) {
-  state.feitos.push({ id: uid(), data: hoje(), chave, titulo, area, min: min || 0 });
+// `data` só vem do relato do dia ("ontem eu..."). Devolve o id para quem precisar desfazer.
+export function registrarFeito({ chave, titulo, area, min, data }) {
+  const id = uid();
+  state.feitos.push({ id, data: data || hoje(), chave, titulo, area, min: min || 0 });
+  return id;
 }
 
 // Convite de instalação que o Chrome entrega (Android e computador). No iPhone não existe: é pelo menu Compartilhar.
@@ -145,14 +148,24 @@ actions.fechar = () => {
 };
 
 // O aviso é um popover para ficar acima do diálogo modal (erro do Gemini aparece com o formulário aberto).
+// Com `desfazer`, ganha um botão que reverte o que acabou de ser gravado, e fica mais tempo na tela.
 let relogio;
-export function aviso(msg) {
+export function aviso(msg, desfazer) {
   const el = document.getElementById('toast');
   if (el.matches(':popover-open')) el.hidePopover();
   el.showPopover();
   el.textContent = msg;
+  if (desfazer) {
+    const botao = Object.assign(document.createElement('button'), { type: 'button', className: 'toast-acao', textContent: 'Desfazer' });
+    botao.onclick = () => {
+      desfazer();
+      commit();
+      aviso('Desfeito.');
+    };
+    el.append(botao);
+  }
   clearTimeout(relogio);
-  relogio = setTimeout(() => el.hidePopover(), 4000);
+  relogio = setTimeout(() => el.hidePopover(), desfazer ? 8000 : 4000);
 }
 
 // Erro de formulário: escrito embaixo do próprio campo, com o foco nele. Some quando a pessoa corrige.

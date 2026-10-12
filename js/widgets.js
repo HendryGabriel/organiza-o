@@ -17,13 +17,14 @@ const moldura = (id, rotulo, { oculto, dica }, miolo) => html`
   </div>`;
 
 // opcoes: { valor: 'Rótulo' }. Com `mudou`, a ação é chamada assim que a pessoa escolhe (filtros).
+// Com `vazio`, o campo pode começar sem escolha, mostrando esse texto; sem ele, começa na primeira opção.
 export function seletor(rotulo, nome, opcoes, atual, extra = {}) {
   const id = `w${++serie}`;
-  const valor = String(atual) in opcoes ? String(atual) : Object.keys(opcoes)[0];
+  const valor = String(atual) in opcoes ? String(atual) : extra.vazio ? '' : Object.keys(opcoes)[0];
   return moldura(id, rotulo, extra, html`
     <input type="hidden" name="${nome}" value="${valor}" ${extra.mudou && html`data-mudou="${extra.mudou}"`}>
     <button type="button" class="gatilho" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-l" aria-labelledby="${id}-r ${id}-v">
-      <span id="${id}-v">${opcoes[valor]}</span>${icon('caret-down', 18)}
+      <span id="${id}-v" class="${valor ? '' : 'vago'}">${valor ? opcoes[valor] : extra.vazio}</span>${icon('caret-down', 18)}
     </button>
     <div class="pop" popover>
       <p class="pop-titulo" aria-hidden="true">${rotulo}</p>
