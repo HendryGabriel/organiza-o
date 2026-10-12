@@ -13,13 +13,24 @@ Painel pessoal de execução: abre, mostra **uma** tarefa que cabe no tempo que 
 
 ## Usar
 
-É um site estático, sem build e sem dependências.
+Publicado em **<https://hendrygabriel.github.io/organiza-o/>** (GitHub Pages, branch `main`). Cada `git push` atualiza o site em cerca de um minuto.
+
+### No celular, como aplicativo
+
+- **Android (Chrome):** abra o endereço, toque nos três pontos e em "Instalar aplicativo". Também há um botão em Configurações.
+- **iPhone (Safari):** abra o endereço, toque em Compartilhar e em "Adicionar à Tela de Início".
+
+Instalado, ele abre em tela cheia, com ícone próprio, e funciona sem internet depois da primeira visita. Segurar o dedo no ícone (Android) dá atalhos para foto da refeição, treino e funil.
+
+### No computador
+
+É um site estático, sem build e sem dependências:
 
 ```bash
 npm start
 ```
 
-Abre em `http://localhost:5173`. Para usar no celular, publique no GitHub Pages (Settings → Pages → Deploy from a branch → `main` / root) e, no navegador do celular, use "Adicionar à tela inicial". Depois da primeira visita o app abre sem internet.
+Abre em `http://localhost:5173`.
 
 ## IA do Google (Gemini)
 

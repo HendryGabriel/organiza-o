@@ -10,7 +10,14 @@
   "background_color": "#0d0b0b",
   "theme_color": "#0d0b0b",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Foto da refeição", "short_name": "Refeição", "url": "./#/corpo/comida" },
+    { "name": "Registrar treino", "short_name": "Treino", "url": "./#/corpo/treino" },
+    { "name": "Funil de prospecção", "short_name": "Negócio", "url": "./#/negocio" }
   ]
 }

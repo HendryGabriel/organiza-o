@@ -64,6 +64,9 @@ export function registrarFeito({ chave, titulo, area, min }) {
   state.feitos.push({ data: hoje(), chave, titulo, area, min: min || 0 });
 }
 
+// Convite de instalação que o Chrome entrega (Android e computador). No iPhone não existe: é pelo menu Compartilhar.
+export const pwa = { convite: null };
+
 // ---------- Ações ----------
 // As telas registram funções aqui; app.js chama pelo nome que vem em data-act / data-mudou.
 export const actions = {};

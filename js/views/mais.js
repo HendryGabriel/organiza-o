@@ -1,5 +1,5 @@
 // Telas de apoio: menu, revisão da semana, tarefas avulsas, rotina e configurações.
-import { state, actions, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js';
+import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js';
 import { html, raw, attr, icon, topo, campo, opcoes, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js';
 import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js';
 import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js';
@@ -165,11 +165,29 @@ export const rotina = () => html`
 
 // ---------- Configurações ----------
 
+const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const iphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+const blocoInstalar = () => html`
+  <section class="bloco" aria-labelledby="h-app">
+    <h2 id="h-app">Usar como aplicativo</h2>
+    ${pwa.convite
+      ? html`
+        <p class="nota">Abre em tela cheia, com ícone próprio, e funciona sem internet.</p>
+        <div class="acoes"><button class="btn btn-p" data-act="config.instalar">${icon('download-simple')} Instalar aplicativo</button></div>`
+      : html`
+        <p class="nota">${iphone()
+          ? 'No iPhone: abra no Safari, toque em Compartilhar e depois em “Adicionar à Tela de Início”.'
+          : 'No Android: abra no Chrome, toque nos três pontos e depois em “Instalar aplicativo” ou “Adicionar à tela inicial”.'}
+          Instalado, ele abre em tela cheia, funciona sem internet e o navegador não apaga seus dados por falta de uso.</p>`}
+  </section>`;
+
 export function config() {
   const s = state.settings;
   const g = gemini();
   return html`
     ${topo('Configurações')}
+    ${!instalado() && blocoInstalar()}
 
     <section class="bloco" aria-labelledby="h-metas">
       <h2 id="h-metas">Ciclo e metas</h2>
@@ -260,6 +278,11 @@ Object.assign(actions, {
       metaProteina: inteiro(f.metaProteina),
     });
     aviso('Metas salvas.');
+  },
+
+  'config.instalar': async () => {
+    await pwa.convite?.prompt();
+    pwa.convite = null;
   },
 
   'config.gemini': (f) => {

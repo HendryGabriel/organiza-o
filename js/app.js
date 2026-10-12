@@ -1,5 +1,5 @@
 // Shell: navegação por hash, despacho de ações e registro do service worker.
-import { actions, aoRenderizar, commit } from './core.js';
+import { actions, aoRenderizar, commit, pwa } from './core.js';
 import { html, attr, icon, duracao } from './ui.js';
 import { hoje } from './logic.js';
 import { render as telaHoje } from './views/hoje.js';
@@ -86,6 +86,17 @@ setInterval(() => {
 }, 1000);
 
 render();
+
+// Guarda o convite de instalação para o botão em Configurações.
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  pwa.convite = e;
+  if (location.hash.startsWith('#/config')) render();
+});
+addEventListener('appinstalled', () => {
+  pwa.convite = null;
+  if (location.hash.startsWith('#/config')) render();
+});
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 // Pede ao navegador para não apagar os dados quando faltar espaço.
