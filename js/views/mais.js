@@ -1,14 +1,14 @@
 // Telas de apoio: menu, revisão da semana, tarefas avulsas, rotina e configurações.
-import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js?v=6';
-import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js?v=6';
-import { seletor, calendario } from '../widgets.js?v=6';
-import { hoje, somaDias, inicioSemana, resumoSemana, resumoDoPeriodo, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js?v=6';
-import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
-import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js?v=6';
-import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js?v=6';
-import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js?v=6';
-import { formPlano } from './hoje.js?v=6';
-import { CAMPOS_PERFIL, perfilDaIA } from '../perfil.js?v=6';
+import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js?v=7';
+import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js?v=7';
+import { seletor, calendario } from '../widgets.js?v=7';
+import { hoje, somaDias, inicioSemana, resumoSemana, resumoDoPeriodo, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js?v=7';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=7';
+import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js?v=7';
+import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js?v=7';
+import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js?v=7';
+import { formPlano } from './hoje.js?v=7';
+import { CAMPOS_PERFIL, perfilDaIA } from '../perfil.js?v=7';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const SEMANA = [1, 2, 3, 4, 5, 6, 0];

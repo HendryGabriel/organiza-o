@@ -1,22 +1,22 @@
 // Shell: navegação por hash, despacho de ações e registro do service worker.
-import { actions, aoRenderizar, commit, pwa, state } from './core.js?v=6';
-import { painelDaArea } from './jornada.js?v=6';
-import { iniciarPeriodos } from './periodos.js?v=6';
-import { html, attr, icon, duracao } from './ui.js?v=6';
-import { hoje } from './logic.js?v=6';
-import { render as telaHoje } from './views/hoje.js?v=6';
-import { render as negocio } from './views/negocio.js?v=6';
-import { render as conteudo } from './views/conteudo.js?v=6';
-import { render as corpo } from './views/corpo.js?v=6';
-import { render as lancer } from './views/lancer.js?v=6';
-import './views/extrato.js?v=6';
-import { menu, semana, tarefas, rotina, config } from './views/mais.js?v=6';
-import { render as metricas } from './views/metricas.js?v=6';
-import { render as registros } from './views/registros.js?v=6';
-import { iniciar as iniciarGraficos } from './graficos.js?v=6';
-import { iniciar as iniciarSincronizacao } from './sinc.js?v=6';
-import { iniciar as iniciarLembretes } from './lembretes.js?v=6';
-import { iniciar as iniciarComponentes } from './widgets.js?v=6';
+import { actions, aoRenderizar, commit, pwa, state } from './core.js?v=7';
+import { painelDaArea } from './jornada.js?v=7';
+import { iniciarPeriodos } from './periodos.js?v=7';
+import { html, attr, icon, duracao } from './ui.js?v=7';
+import { hoje } from './logic.js?v=7';
+import { render as telaHoje } from './views/hoje.js?v=7';
+import { render as negocio } from './views/negocio.js?v=7';
+import { render as conteudo } from './views/conteudo.js?v=7';
+import { render as corpo } from './views/corpo.js?v=7';
+import { render as lancer } from './views/lancer.js?v=7';
+import './views/extrato.js?v=7';
+import { menu, semana, tarefas, rotina, config } from './views/mais.js?v=7';
+import { render as metricas } from './views/metricas.js?v=7';
+import { render as registros } from './views/registros.js?v=7';
+import { iniciar as iniciarGraficos } from './graficos.js?v=7';
+import { iniciar as iniciarSincronizacao } from './sinc.js?v=7';
+import { iniciar as iniciarLembretes } from './lembretes.js?v=7';
+import { iniciar as iniciarComponentes } from './widgets.js?v=7';
 
 const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, metricas, semana, tarefas, rotina, config, registros };
 

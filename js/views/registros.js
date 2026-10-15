@@ -1,9 +1,9 @@
-import { state, actions, abrir, fechar, aviso, invalido } from '../core.js?v=6';
-import { html, topo, campo, icon, dataMedia, dinheiro, n, vazio } from '../ui.js?v=6';
-import { AREAS, TIPOS } from '../logic.js?v=6';
-import { seletor, calendario } from '../widgets.js?v=6';
-import { editarRegistro } from '../edicao.js?v=6';
-import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
+import { state, actions, abrir, fechar, aviso, invalido } from '../core.js?v=7';
+import { html, topo, campo, icon, dataMedia, dinheiro, n, vazio } from '../ui.js?v=7';
+import { AREAS, TIPOS } from '../logic.js?v=7';
+import { seletor, calendario } from '../widgets.js?v=7';
+import { editarRegistro } from '../edicao.js?v=7';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=7';
 
 const TIPOS_REGISTRO = {
   todos: 'Todos', treinos: 'Treinos', refeicoes: 'Refeições', medidas: 'Peso', feitos: 'Ações concluídas',

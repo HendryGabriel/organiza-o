@@ -3,8 +3,8 @@
 // data como AAAA-MM-DD), então formulários e ações não precisaram mudar.
 // Fechar no toque fora, Esc, botão voltar do Android e devolver o foco são da Popover API nativa.
 // Aqui ficam o desenho, a posição e o teclado.
-import { html, attr, icon, dataNumerica } from './ui.js?v=6';
-import { hoje, iso, parseData, somaDias, diaSemana } from './logic.js?v=6';
+import { html, attr, icon, dataNumerica } from './ui.js?v=7';
+import { hoje, iso, parseData, somaDias, diaSemana } from './logic.js?v=7';
 
 const ESTREITO = '(max-width: 639px)'; // mesma medida do CSS: abaixo disso o painel vira folha inferior
 let serie = 0;

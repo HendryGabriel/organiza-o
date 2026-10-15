@@ -1,7 +1,7 @@
 // Números por trás dos gráficos. Regras puras (sem DOM), para rodar também em `node --test`.
 // Todo gráfico no tempo usa a mesma unidade do app: a semana, de segunda a domingo.
-import { somaDias, parseData, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js?v=6';
-import { balancoDoDia } from './analise.js?v=6';
+import { somaDias, parseData, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js?v=7';
+import { balancoDoDia } from './analise.js?v=7';
 
 // As `n` semanas que terminam na semana de `ref`, da mais antiga para a atual (segunda-feira de cada uma).
 export const semanasAte = (ref, n) => [...Array(n)].map((_, i) => somaDias(inicioSemana(ref), -7 * (n - 1 - i)));

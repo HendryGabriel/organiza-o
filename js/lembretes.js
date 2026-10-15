@@ -1,11 +1,11 @@
 // Notificações. O app deixa guardado no aparelho um resumo dos próximos dias. Duas vezes por dia um "toque" de
 // push, enviado pelo repositório de dados (ver a pasta lembretes/), acorda o service worker, que monta o lembrete
 // com esse resumo. O toque não leva conteúdo: nenhum dado pessoal passa pelo serviço de push.
-import './lembrete.js?v=6';
-import { state, commit, uid } from './core.js?v=6';
-import { hoje } from './logic.js?v=6';
-import { resumoDosLembretes } from './analise.js?v=6';
-import { APARELHO } from './sinc.js?v=6';
+import './lembrete.js?v=7';
+import { state, commit, uid } from './core.js?v=7';
+import { hoje } from './logic.js?v=7';
+import { resumoDosLembretes } from './analise.js?v=7';
+import { APARELHO } from './sinc.js?v=7';
 
 const CHAVE = 'hendry.aparelho'; // identidade deste aparelho, para ele achar a própria inscrição entre as sincronizadas
 export const meuId = () => {

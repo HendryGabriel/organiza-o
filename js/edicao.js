@@ -1,4 +1,4 @@
-import { num, AREAS } from './logic.js?v=6';
+import { num, AREAS } from './logic.js?v=7';
 
 // Corrige o registro existente e seus vínculos; nunca cria uma segunda cópia.
 export function editarRegistro(state, lista, id, campos) {

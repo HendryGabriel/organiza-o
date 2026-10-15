@@ -1,13 +1,13 @@
 // Importar o extrato da conta ou a fatura do cartão: o app lê datas e valores, a IA classifica,
 // e nada vira lançamento antes de a pessoa conferir.
-import { state, actions, abrir, fechar, dialogoAberto, aviso, uid } from '../core.js?v=6';
-import { html, attr, icon, dataCurta, dinheiro } from '../ui.js?v=6';
-import { seletor } from '../widgets.js?v=6';
-import { hoje, somaDias, parseData, RENDAS, GASTOS } from '../logic.js?v=6';
-import { mesDe, mesAntes } from '../analise.js?v=6';
-import { decodificar, lerOfx, lerCsv, comprasDaFatura, conferir, chaveDe, classeValida } from '../extrato.js?v=6';
-import { classificar, lerExtrato, config as gemini } from '../gemini.js?v=6';
-import { emBase64 } from '../audio.js?v=6';
+import { state, actions, abrir, fechar, dialogoAberto, aviso, uid } from '../core.js?v=7';
+import { html, attr, icon, dataCurta, dinheiro } from '../ui.js?v=7';
+import { seletor } from '../widgets.js?v=7';
+import { hoje, somaDias, parseData, RENDAS, GASTOS } from '../logic.js?v=7';
+import { mesDe, mesAntes } from '../analise.js?v=7';
+import { decodificar, lerOfx, lerCsv, comprasDaFatura, conferir, chaveDe, classeValida } from '../extrato.js?v=7';
+import { classificar, lerExtrato, config as gemini } from '../gemini.js?v=7';
+import { emBase64 } from '../audio.js?v=7';
 
 let lote = null; // extrato já lido e classificado, esperando a conferência: { cartao, fatura, itens }
 

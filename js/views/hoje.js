@@ -1,11 +1,11 @@
 // Tela Hoje: o dia inteiro em uma página. Primeiro a assistente (conte o dia ou pergunte),
 // depois o que já está registrado, a tarefa sugerida e os atalhos.
-import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js?v=6';
-import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js?v=6';
-import { seletor } from '../widgets.js?v=6';
-import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS, progressoDoJogo } from '../logic.js?v=6';
-import { balancoDoDia } from '../analise.js?v=6';
-import { caixaDaAssistente } from './assistente.js?v=6';
+import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js?v=7';
+import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js?v=7';
+import { seletor } from '../widgets.js?v=7';
+import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS, progressoDoJogo } from '../logic.js?v=7';
+import { balancoDoDia } from '../analise.js?v=7';
+import { caixaDaAssistente } from './assistente.js?v=7';
 
 const MODOS = [
   [5, '5 min', 'Dia difícil'],

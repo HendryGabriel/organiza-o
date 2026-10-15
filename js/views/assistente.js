@@ -1,11 +1,11 @@
 // A assistente: a pessoa escreve ou grava, a IA responde e separa o que foi contado em registros.
 // Nada entra no app sem a confirmação dela, e dá para desfazer logo em seguida.
-import { state, actions, commit, registrarFeito, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=6';
-import { html, icon, dataCurta, dataLonga, dinheiro, n } from '../ui.js?v=6';
-import { hoje, somaMacros, mudarEtapa, financas, AREAS, TIPOS, CATEGORIAS, FUNIL } from '../logic.js?v=6';
-import { contextoDaAssistente, faturaDe, parcelar } from '../analise.js?v=6';
-import { conversar, config as gemini } from '../gemini.js?v=6';
-import { gravar, parar, cancelar } from '../audio.js?v=6';
+import { state, actions, commit, registrarFeito, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=7';
+import { html, icon, dataCurta, dataLonga, dinheiro, n } from '../ui.js?v=7';
+import { hoje, somaMacros, mudarEtapa, financas, AREAS, TIPOS, CATEGORIAS, FUNIL, caloriasInformadas } from '../logic.js?v=7';
+import { contextoDaAssistente, faturaDe, parcelar } from '../analise.js?v=7';
+import { conversar, config as gemini } from '../gemini.js?v=7';
+import { gravar, parar, cancelar } from '../audio.js?v=7';
 
 const LIMITE_DO_AUDIO = 3 * 60 * 1000;
 const MEMORIA = 10; // falas que voltam para a IA a cada mensagem
@@ -87,7 +87,7 @@ export function caixaDaAssistente() {
 
 function itensDoPlano(p) {
   const itens = [];
-  p.treinos.forEach((t, i) => itens.push({ chave: `treinos:${i}`, grupo: 'Treino', titulo: t.tipo, detalhe: junta(t.min && `${t.min} min`, t.obs, emOutroDia(t.data)) }));
+  p.treinos.forEach((t, i) => itens.push({ chave: `treinos:${i}`, grupo: 'Treino', titulo: t.tipo, detalhe: junta(t.min && `${t.min} min`, caloriasInformadas(t) != null && `${n(t.kcal)} kcal informadas`, t.obs, emOutroDia(t.data)) }));
   p.refeicoes.forEach((r, i) => itens.push({ chave: `refeicoes:${i}`, grupo: 'Refeição', titulo: r.nome, valor: `${n(somaMacros(r.itens).kcal)} kcal`, detalhe: junta(r.itens.map((x) => `${x.nome} (${x.porcao})`).join(', '), emOutroDia(r.data)) }));
   p.acoes.forEach((a, i) => itens.push({ chave: `acoes:${i}`, grupo: 'Ação', titulo: a.titulo, detalhe: junta(AREAS[a.area], a.min && `${a.min} min`, emOutroDia(a.data)) }));
   p.contatos.forEach((c, i) => {
@@ -198,7 +198,7 @@ function aplicar(p, marcados, dito) {
 
   p.treinos.forEach((t, i) => {
     if (!marcados.has(`treinos:${i}`)) return;
-    novo('treinos', { id: uid(), data: t.data, tipo: t.tipo, min: t.min, obs: t.obs });
+    novo('treinos', { id: uid(), data: t.data, tipo: t.tipo, min: t.min, obs: t.obs, ...(caloriasInformadas(t) != null ? { kcal: t.kcal } : {}) });
     contar('treino');
   });
   p.refeicoes.forEach((r, i) => {

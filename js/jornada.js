@@ -1,5 +1,5 @@
-import { html, icon, n, dinheiroCurto } from './ui.js?v=6';
-import { hoje, resumoSemana, progressoDoJogo, financas, funil, inicioSemana, dataRegistroVideo } from './logic.js?v=6';
+import { html, icon, n, dinheiroCurto } from './ui.js?v=7';
+import { hoje, resumoSemana, progressoDoJogo, financas, funil, inicioSemana, dataRegistroVideo } from './logic.js?v=7';
 
 const ARENAS = {
   hoje: ['CENTRAL DE MISSÕES', 'Um passo hoje. Um novo nível amanhã.', 'Escolha sua missão, registre o que fez e acompanhe a sua evolução.', 'lightning'],

@@ -2,7 +2,7 @@
 // ponytail: rede primeiro, cache só quando a rede falha. Sempre atualizado online, sem versão para lembrar de trocar.
 importScripts('js/lembrete.js'); // montarLembrete: o mesmo texto que a página usa no teste de notificação
 
-const CACHE = 'hendry-v6';
+const CACHE = 'hendry-v7';
 const SHELL = [
   'js/jornada.js', 'js/perfil.js', 'js/edicao.js', 'js/views/registros.js', 'js/periodos.js',
   './', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg',

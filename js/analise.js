@@ -1,7 +1,7 @@
 // Análises do dinheiro e do corpo, e o resumo do app que acompanha cada conversa com a assistente.
 // Regras puras, como logic.js e metricas.js: rodam também em `node --test`.
-import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS } from './logic.js?v=6';
-import { perfilDaIA } from './perfil.js?v=6';
+import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS, caloriasInformadas } from './logic.js?v=7';
+import { perfilDaIA } from './perfil.js?v=7';
 
 const total = (lista) => lista.reduce((t, x) => t + x.valor, 0);
 
@@ -205,6 +205,8 @@ export function categoriaDoTreino(treino) {
   return /corr|trote|caminh|bike|bici|cicl|spinning|pedal|esteira|el[ií]pt|c[aá]rdio|nata[cç]|nado|futebol|hiit|cross|funcional|luta|boxe|muay|jiu/i.test(treino.tipo || '') ? 'cardio' : 'musculacao';
 }
 export function gastoDoTreino(treino, peso) {
+  const informado = caloriasInformadas(treino);
+  if (informado != null) return informado;
   if (!(peso > 0) || !(treino.min > 0)) return 0;
   const met = categoriaDoTreino(treino) === 'musculacao' ? 4.5 : (MET.find(([nome]) => nome.test(treino.tipo || ''))?.[1] ?? 6);
   // O gasto de base já conta o repouso dessa hora: aqui entra só o que o treino acrescenta.
@@ -218,9 +220,13 @@ export function balancoDoDia(state, data) {
   const peso = pesoEm(state.medidas, data);
   const base = gastoBase(state.settings, peso);
   const atividades = state.treinos.filter((t) => t.data === data);
-  const porCategoria = (categoria) => atividades.filter((t) => categoriaDoTreino(t) === categoria).reduce((s, t) => s + gastoDoTreino(t, peso), 0);
-  const musculacao = peso > 0 ? porCategoria('musculacao') : null;
-  const cardio = peso > 0 ? porCategoria('cardio') : null;
+  const porCategoria = (categoria) => {
+    const lista = atividades.filter((t) => categoriaDoTreino(t) === categoria);
+    if (!(peso > 0) && (!lista.length || lista.some((t) => caloriasInformadas(t) == null))) return null;
+    return lista.reduce((s, t) => s + gastoDoTreino(t, peso), 0);
+  };
+  const musculacao = porCategoria('musculacao');
+  const cardio = porCategoria('cardio');
   const treino = (musculacao || 0) + (cardio || 0);
   const comeu = refeicoes.length ? somaMacros(refeicoes).kcal : null;
   const gasto = base == null ? null : base + treino;
@@ -302,7 +308,7 @@ export function contextoDaAssistente(state, ref = hoje()) {
     sobreHendry: perfilDaIA(state.settings),
     diaDaSemana: DIAS[diaSemana(ref)],
     registradoHoje: {
-      treinos: state.treinos.filter((x) => x.data === ref).map((x) => ({ tipo: x.tipo, minutos: x.min })),
+      treinos: state.treinos.filter((x) => x.data === ref).map((x) => ({ tipo: x.tipo, minutos: x.min, kcalInformadas: caloriasInformadas(x) })),
       refeicoes: state.refeicoes.filter((x) => x.data === ref).map((x) => ({ nome: x.nome, kcal: x.kcal })),
       acoes: state.feitos.filter((x) => x.data === ref).map((x) => ({ titulo: x.titulo, area: AREAS[x.area] })),
       dinheiro: state.financas.filter((x) => x.data === ref).map((x) => ({ tipo: TIPOS[x.tipo], valor: reais(x.valor), descricao: x.descricao })),

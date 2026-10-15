@@ -1,13 +1,13 @@
 // Dinheiro: o placar do Lancer, a análise do mês (de onde vem, para onde vai, onde economizar) e os lançamentos.
-import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js?v=6';
-import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js?v=6';
-import { seletor, calendario } from '../widgets.js?v=6';
-import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
-import { hoje, somaDias, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js?v=6';
-import { ultimasSemanas } from '../metricas.js?v=6';
-import { fluxoDoMes, fluxoDoIntervalo, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js?v=6';
-import { mesesPerto } from './extrato.js?v=6';
-import { linha, barrasH } from '../graficos.js?v=6';
+import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js?v=7';
+import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js?v=7';
+import { seletor, calendario } from '../widgets.js?v=7';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=7';
+import { hoje, somaDias, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js?v=7';
+import { ultimasSemanas } from '../metricas.js?v=7';
+import { fluxoDoMes, fluxoDoIntervalo, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js?v=7';
+import { mesesPerto } from './extrato.js?v=7';
+import { linha, barrasH } from '../graficos.js?v=7';
 
 const ABAS = { placar: 'Lancer', analise: 'Análise', lancamentos: 'Lançamentos' };
 const SUBTITULO = {

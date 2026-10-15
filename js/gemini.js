@@ -1,7 +1,7 @@
 // Chamadas à IA do Google (Gemini API), direto do navegador com a chave do próprio usuário.
-import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js?v=6';
-import { classeValida, movimentosDaIA } from './extrato.js?v=6';
-import { perfilDaIA } from './perfil.js?v=6';
+import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js?v=7';
+import { classeValida, movimentosDaIA } from './extrato.js?v=7';
+import { perfilDaIA } from './perfil.js?v=7';
 
 // A chave fica fora do estado do app para nunca entrar no backup exportado.
 const CHAVE = 'hendry.gemini';
@@ -159,7 +159,7 @@ const ESQUEMA_ASSISTENTE = {
   type: 'OBJECT',
   properties: {
     relato: { type: 'STRING', description: 'Transcrição fiel do áudio. Vazio quando a mensagem veio escrita.' },
-    treinos: lista({ data: DIA, tipo: { type: 'STRING', description: 'Nome curto: Perna, Peito e tríceps, Corrida' }, minutos: NUMERO, observacao: TEXTO }, ['data', 'tipo']),
+    treinos: lista({ data: DIA, tipo: { type: 'STRING', description: 'Nome curto: Perna, Peito e tríceps, Corrida' }, minutos: NUMERO, kcal: { type: 'NUMBER', nullable: true, description: 'Calorias gastas informadas pela pessoa ou pela máquina; null quando não foram ditas. Não estimar.' }, observacao: TEXTO }, ['data', 'tipo']),
     refeicoes: lista({ data: DIA, nome: { type: 'STRING', description: 'Café da manhã, Almoço, Lanche, Jantar' }, itens: ESQUEMA_REFEICAO.properties.itens }, ['data', 'nome', 'itens']),
     acoes: lista({ data: DIA, titulo: TEXTO, area: AREA, minutos: NUMERO }, ['data', 'titulo', 'area']),
     contatos: lista(
@@ -207,7 +207,7 @@ COMO RESPONDER
 COMO REGISTRAR
 Registre só o que foi dito. Não invente treino, refeição, contato, valor nem resultado: na dúvida, deixe de fora. Lista sem nada fica vazia. Pergunta não gera registro.
 
-treinos: cada treino ou atividade física (academia, corrida, futebol). Separe musculação e cárdio em registros diferentes, usando a duração de cada um. Não atribua a duração total aos dois. "tipo" é o nome curto, como "Perna" ou "Corrida". "minutos" só se a duração foi dita; senão 0. Cargas e como a pessoa se sentiu vão em "observacao".
+treinos: cada treino ou atividade física (academia, corrida, futebol). Separe musculação e cárdio em registros diferentes, usando a duração de cada um. Não atribua a duração total aos dois. "tipo" é o nome curto, como "Perna" ou "Corrida". "minutos" só se a duração foi dita; senão 0. "kcal" é o gasto calórico que a pessoa informou (máquina/relógio), inclusive se não informou duração; não calcule nem estime esse campo. Calorias de comida pertencem a refeições. Se não houver gasto informado, omita kcal ou use null. Preserve o número informado e associe ao treino correto. Cargas e como a pessoa se sentiu vão em "observacao".
 
 refeicoes: cada refeição ou lanche citado. Liste os alimentos com a porção (gramas ou medida caseira) e os valores dessa porção: kcal, proteína, carboidrato e gordura em gramas, por tabelas brasileiras de composição de alimentos. Sem quantidade dita, use uma porção comum de adulto.
 

@@ -8,8 +8,8 @@
 // período atual, que ainda está em andamento e por isso costuma estar mais baixo. `s0` é o cinza de contexto.
 // Não há cor fazendo papel de categoria: quando duas medidas dividem um gráfico, uma é clara e a outra cinza,
 // diferença que não depende de enxergar matiz, e a legenda diz qual é qual.
-import { html, raw, n, resumo } from './ui.js?v=6';
-import { teto } from './metricas.js?v=6';
+import { html, raw, n, resumo } from './ui.js?v=7';
+import { teto } from './metricas.js?v=7';
 
 const pct = (v, topo) => `${Math.round((v / topo) * 1000) / 10}%`;
 

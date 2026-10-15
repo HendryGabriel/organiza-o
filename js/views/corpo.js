@@ -1,12 +1,12 @@
-import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=6';
-import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js?v=6';
-import { seletor, calendario } from '../widgets.js?v=6';
-import { hoje, somaDias, parseData, inicioSemana, diaSemana, somaMacros, num } from '../logic.js?v=6';
-import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS, categoriaDoTreino } from '../analise.js?v=6';
-import { reduzirFoto, analisarRefeicao } from '../gemini.js?v=6';
-import { ultimasSemanas, caloriasPorDia } from '../metricas.js?v=6';
-import { barras, linha } from '../graficos.js?v=6';
-import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
+import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=7';
+import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js?v=7';
+import { seletor, calendario } from '../widgets.js?v=7';
+import { hoje, somaDias, parseData, inicioSemana, diaSemana, somaMacros, num, caloriasInformadas } from '../logic.js?v=7';
+import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS, categoriaDoTreino } from '../analise.js?v=7';
+import { reduzirFoto, analisarRefeicao } from '../gemini.js?v=7';
+import { ultimasSemanas, caloriasPorDia } from '../metricas.js?v=7';
+import { barras, linha } from '../graficos.js?v=7';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=7';
 
 const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Peso' };
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -31,6 +31,7 @@ function formTreino(t) {
       </div>
       ${seletor('Categoria', 'categoria', { musculacao: 'Musculação', cardio: 'Cárdio' }, t ? categoriaDoTreino(t) : 'musculacao')}
       <small>Registre musculação e cárdio separadamente, com a duração de cada atividade.</small>
+      ${campo('Calorias gastas (kcal)', html`<input name="kcal" inputmode="decimal" value="${caloriasInformadas(t) ?? ''}" autocomplete="off" placeholder="Valor da máquina ou do relógio">`, 'Opcional. Se preenchido, este valor é usado exatamente como informado. Deixe vazio para estimar pela duração e pelo peso.')}
       ${campo('Treino', html`<input name="tipo" value="${t?.tipo || ''}" autocomplete="off" placeholder="Ex.: peito e tríceps…">`)}
       ${tipos.length > 0 && html`
         <div class="sugestoes" role="group" aria-label="Treinos recentes">
@@ -60,7 +61,7 @@ function treino() {
       <div><dt>musculação hoje</dt><dd class="num">${balanco.musculacao == null ? '—' : n(balanco.musculacao)}<small> kcal</small></dd></div>
       <div><dt>cárdio hoje</dt><dd class="num">${balanco.cardio == null ? '—' : n(balanco.cardio)}<small> kcal</small></dd></div>
     </dl>
-    <p class="nota">Gastos estimados pela duração e pelo peso. ${balanco.musculacao == null ? 'Registre seu peso na aba Peso para calcular.' : 'O gasto total do dia inclui também repouso e rotina.'}</p>
+    <p class="nota">Calorias informadas têm prioridade; sem elas, o gasto é estimado pela duração e pelo peso. ${balanco.musculacao == null ? 'Registre seu peso na aba Peso para calcular.' : 'O gasto total do dia inclui também repouso e rotina.'}</p>
     <ol class="tira" aria-label="Treinos desta semana">
       ${semana.map((x) => {
         const feito = feitos.has(x);
@@ -110,7 +111,7 @@ function treino() {
                 <button class="linha" data-act="treino.abrir" data-id="${t.id}">
                   <span class="principal">${t.tipo || 'Treino'} · ${categoriaDoTreino(t) === 'cardio' ? 'Cárdio' : 'Musculação'}</span>
                   <span class="lado">${dataMedia(t.data)}</span>
-                  <span class="detalhe">${t.min ? `${t.min} min` : ''}${t.min && t.obs ? ' · ' : ''}${t.obs}</span>
+                  <span class="detalhe">${t.min ? `${t.min} min · ` : ''}${caloriasInformadas(t) != null ? `${n(t.kcal)} kcal informadas · ` : 'Gasto estimado · '}${t.obs}</span>
                 </button>
               </li>`)}
           </ul>`}
@@ -123,6 +124,8 @@ let diaEscolhido = null; // null = hoje
 let periodoComida = null;
 let foto = null; // data URL da foto em análise
 let analise = null;
+let dicaFoto = '';
+let analisandoFoto = false;
 
 const img = () => html`<img class="foto" src="${foto}" alt="Foto da refeição" width="512" height="384">`;
 
@@ -139,6 +142,7 @@ function formRefeicao(r) {
         ${campo('Gordura (g)', html`<input name="g" inputmode="numeric" value="${r?.g ?? ''}" autocomplete="off">`)}
       </div>
       ${calendario('Data', 'data', r?.data || diaEscolhido || hoje(), { max: hoje(), obrigatorio: true })}
+      ${campo('Observação da refeição', html`<textarea name="obs" rows="2" placeholder="Porção, preparo ou algo a considerar…">${r?.obs || ''}</textarea>`)}
       ${r?.itens?.length > 0 && html`
         <section>
           <h3>Itens</h3>
@@ -190,6 +194,9 @@ function formAnalise(a, dica) {
 }
 
 async function analisar(dica) {
+  if (analisandoFoto || !foto) return;
+  analisandoFoto = true;
+  dicaFoto = dica == null ? dicaFoto : dica;
   abrir('Refeição', html`
     <div class="dlg-corpo">
       ${img()}
@@ -197,8 +204,8 @@ async function analisar(dica) {
     </div>`);
   let corpo;
   try {
-    analise = await analisarRefeicao(foto, dica);
-    corpo = formAnalise(analise, dica);
+    analise = await analisarRefeicao(foto, dicaFoto);
+    corpo = formAnalise(analise, dicaFoto);
   } catch (e) {
     corpo = html`
       <div class="dlg-corpo">
@@ -210,6 +217,7 @@ async function analisar(dica) {
         </footer>
       </div>`;
   }
+  analisandoFoto = false;
   // Se o diálogo foi fechado no meio da análise, a pessoa desistiu: não reabre na cara dela.
   if (dialogoAberto()) abrir('Refeição', corpo);
 }
@@ -442,10 +450,14 @@ Object.assign(actions, {
     return false;
   },
   'treino.salvar': (f, form) => {
-    if (!(inteiro(f.min) > 0)) return invalido(form.elements.min, 'Informe a duração para calcular o gasto.');
+    const kcal = texto(f.kcal) === '' ? null : num(f.kcal);
+    if (kcal != null && (!Number.isFinite(kcal) || kcal < 0)) return invalido(form.elements.kcal, 'Informe um valor de calorias válido, maior ou igual a zero.');
+    if (!(inteiro(f.min) > 0) && kcal == null) return invalido(form.elements.min, 'Informe a duração ou as calorias gastas.');
     let t = state.treinos.find((x) => x.id === f.id);
     if (!t) state.treinos.push((t = { id: uid() }));
     Object.assign(t, { data: f.data, categoria: f.categoria, tipo: texto(f.tipo), min: inteiro(f.min), obs: texto(f.obs) });
+    if (kcal == null) delete t.kcal;
+    else t.kcal = kcal;
     fechar();
   },
   'treino.excluir': ({ id }) => {
@@ -483,11 +495,22 @@ Object.assign(actions, {
       aviso('Não consegui abrir essa imagem. Tente outra foto.');
       return false;
     }
-    await analisar();
+    analise = null;
+    dicaFoto = '';
+    abrir('Antes de analisar a foto', html`<form class="dlg-corpo" data-act="comida.analisarFoto">
+      ${img()}
+      ${campo('Observação para a IA', html`<textarea name="dica" rows="4" placeholder="Ex.: frango sem óleo, arroz 100 g, comi só metade…"></textarea>`, 'Opcional. Informe porção, ingredientes ou modo de preparo para considerar já na primeira análise.')}
+      <p class="nota">A foto ainda não foi enviada à IA. Ela será enviada junto com a observação quando você clicar em Analisar foto.</p>
+      <footer class="dlg-acoes"><button type="button" class="btn btn-s" data-act="fechar">Cancelar</button><button class="btn btn-p">Analisar foto</button></footer>
+    </form>`);
+    return false;
+  },
+  'comida.analisarFoto': async (f) => {
+    await analisar(texto(f.dica));
     return false;
   },
   'comida.recalcular': async (_, botao) => {
-    await analisar(texto(botao.form?.dica.value));
+    await analisar(botao.form?.elements.dica ? texto(botao.form.elements.dica.value) : dicaFoto);
     return false;
   },
   'comida.somar': (_, caixa) => {
@@ -506,6 +529,7 @@ Object.assign(actions, {
       ...somaMacros(itens),
       itens,
       origem: 'foto',
+      obs: dicaFoto,
     });
     foto = analise = null;
     fechar();
@@ -522,7 +546,7 @@ Object.assign(actions, {
   'comida.salvar': (f) => {
     let r = state.refeicoes.find((x) => x.id === f.id);
     if (!r) state.refeicoes.push((r = { id: uid(), hora: new Date().toTimeString().slice(0, 5), origem: 'manual' }));
-    Object.assign(r, { nome: texto(f.nome), data: f.data, kcal: inteiro(f.kcal), p: inteiro(f.p), c: inteiro(f.c), g: inteiro(f.g) });
+    Object.assign(r, { nome: texto(f.nome), data: f.data, kcal: inteiro(f.kcal), p: inteiro(f.p), c: inteiro(f.c), g: inteiro(f.g), obs: texto(f.obs) });
     if (r.itens?.length) {
       r.itens = r.itens.map((i, indice) => ({ ...i, nome: texto(f[`item-${indice}-nome`]), porcao: texto(f[`item-${indice}-porcao`]), ...Object.fromEntries(['kcal', 'p', 'c', 'g'].map((m) => [m, Math.max(0, num(f[`item-${indice}-${m}`]) || 0)])) }));
       if (f.recalcularItens === 'on') Object.assign(r, somaMacros(r.itens));

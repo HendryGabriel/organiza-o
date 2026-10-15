@@ -1,12 +1,12 @@
 // Painel de métricas: os mesmos registros do app, vistos semana a semana.
-import { state, actions } from '../core.js?v=6';
-import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js?v=6';
-import { seletor } from '../widgets.js?v=6';
-import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
-import { hoje, somaDias, parseData, inicioSemana } from '../logic.js?v=6';
-import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js?v=6';
-import { barras, barrasH, linha } from '../graficos.js?v=6';
-import { STATUS } from './conteudo.js?v=6';
+import { state, actions } from '../core.js?v=7';
+import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js?v=7';
+import { seletor } from '../widgets.js?v=7';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=7';
+import { hoje, somaDias, parseData, inicioSemana } from '../logic.js?v=7';
+import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js?v=7';
+import { barras, barrasH, linha } from '../graficos.js?v=7';
+import { STATUS } from './conteudo.js?v=7';
 
 const PERIODOS = { 4: 'Últimas 4 semanas', 8: 'Últimas 8 semanas', 12: 'Últimas 12 semanas' };
 let periodo = null;

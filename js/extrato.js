@@ -1,6 +1,6 @@
 // Leitura de extrato bancário e de fatura de cartão. Regras puras, para rodar também em `node --test`.
 // Valores e datas são lidos aqui, pelo próprio app: a IA só entra para classificar (e para ler PDF, que não tem outro jeito).
-import { iso, parseData, num, RENDAS, GASTOS } from './logic.js?v=6';
+import { iso, parseData, num, RENDAS, GASTOS } from './logic.js?v=7';
 
 const dataValida = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && iso(parseData(v)) === v;
 // "12/10/2026", "12/10/26" ou "2026-10-12" -> "2026-10-12"

@@ -210,7 +210,7 @@ export function normalizarDia(obj, ref) {
   return {
     resposta: s(obj?.resposta, 2000),
     relato: s(obj?.relato, 4000),
-    treinos: lista(obj?.treinos).map((t) => ({ data: dia(t?.data), tipo: s(t?.tipo, 60) || 'Treino', min: minutos(t?.minutos), obs: s(t?.observacao, 300) })),
+    treinos: lista(obj?.treinos).map((t) => ({ data: dia(t?.data), tipo: s(t?.tipo, 60) || 'Treino', min: minutos(t?.minutos), obs: s(t?.observacao, 300), ...(caloriasInformadas(t) != null ? { kcal: caloriasInformadas(t) } : {}) })),
     refeicoes: lista(obj?.refeicoes)
       .map((r) => {
         const { nome, itens } = normalizarRefeicao(r);
@@ -247,6 +247,12 @@ export function normalizarDia(obj, ref) {
       .filter((t) => t.titulo),
     peso: peso >= 20 && peso <= 400 ? Math.round(peso * 10) / 10 : null,
   };
+}
+
+export function caloriasInformadas(treino) {
+  if (treino?.kcal == null || String(treino.kcal).trim() === '') return null;
+  const valor = num(treino.kcal);
+  return Number.isFinite(valor) && valor >= 0 ? valor : null;
 }
 
 // ---------- Semana ----------

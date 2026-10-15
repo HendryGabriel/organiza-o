@@ -1,5 +1,5 @@
-import { hoje, somaDias, inicioSemana, iso, parseData } from './logic.js?v=6';
-import { html, icon, attr, dataNumerica } from './ui.js?v=6';
+import { hoje, somaDias, inicioSemana, iso, parseData } from './logic.js?v=7';
+import { html, icon, attr, dataNumerica } from './ui.js?v=7';
 
 export const ATALHOS = { hoje: 'Hoje', ontem: 'Ontem', dois: 'Hoje e ontem', 7: 'Últimos 7 dias', 14: 'Últimos 14 dias', 28: 'Últimos 28 dias', 30: 'Últimos 30 dias', semana: 'Esta semana', passada: 'Semana passada', mes: 'Este mês', mesPassado: 'Mês passado' };
 export function periodoPronto(chave, ref = hoje()) {
