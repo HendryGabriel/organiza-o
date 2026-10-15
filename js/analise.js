@@ -1,7 +1,7 @@
 // Análises do dinheiro e do corpo, e o resumo do app que acompanha cada conversa com a assistente.
 // Regras puras, como logic.js e metricas.js: rodam também em `node --test`.
-import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS } from './logic.js?v=4';
-import { perfilDaIA } from './perfil.js?v=4';
+import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS } from './logic.js?v=6';
+import { perfilDaIA } from './perfil.js?v=6';
 
 const total = (lista) => lista.reduce((t, x) => t + x.valor, 0);
 
@@ -86,6 +86,25 @@ export function fluxoDoMes(lancamentos, mes, ateDia = '31', vencimento = 10) {
   const entrou = total(entradas);
   const saiu = total(saidas);
   return { mes, entradas, saidas, entrou, saiu, sobra: entrou - saiu, guardado: tipo('reserva') - tipo('retirada'), cartao: { pago, detalhado, semDetalhe } };
+}
+
+export function fluxoDoIntervalo(lancamentos, inicio, fim, vencimento = 10) {
+  const resultado = { entradas: [], saidas: [], entrou: 0, saiu: 0, sobra: 0, guardado: 0, cartao: { pago: 0, detalhado: 0, semDetalhe: 0 } };
+  const grupos = { entradas: new Map(), saidas: new Map() };
+  for (let mes = inicio.slice(0, 7); mes <= fim.slice(0, 7); mes = mesAntes(mes, -1)) {
+    const ate = mes === fim.slice(0, 7) ? fim.slice(8) : '31';
+    const antes = mes === inicio.slice(0, 7) ? String(Number(inicio.slice(8)) - 1).padStart(2, '0') : '00';
+    const a = fluxoDoMes(lancamentos, mes, ate, vencimento), b = fluxoDoMes(lancamentos, mes, antes, vencimento);
+    for (const campo of ['entrou', 'saiu', 'guardado']) resultado[campo] += a[campo] - b[campo];
+    for (const campo of ['pago', 'detalhado', 'semDetalhe']) resultado.cartao[campo] += a.cartao[campo] - b.cartao[campo];
+    for (const campo of ['entradas', 'saidas']) for (const [sinal, lista] of [[1, a[campo]], [-1, b[campo]]]) for (const linha of lista) {
+      const anterior = grupos[campo].get(linha.nome) || { ...linha, valor: 0 };
+      anterior.valor += sinal * linha.valor; grupos[campo].set(linha.nome, anterior);
+    }
+  }
+  for (const campo of ['entradas', 'saidas']) resultado[campo] = [...grupos[campo].values()].filter((r) => r.valor !== 0).sort((a, b) => b.valor - a.valor);
+  resultado.sobra = resultado.entrou - resultado.saiu;
+  return resultado;
 }
 
 // Gastos que se decidem mês a mês. Moradia, parcelas, impostos e o negócio ficam de fora da lista de cortes.

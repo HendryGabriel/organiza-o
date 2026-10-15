@@ -1,13 +1,14 @@
 // Telas de apoio: menu, revisão da semana, tarefas avulsas, rotina e configurações.
-import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js?v=4';
-import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js?v=4';
-import { seletor, calendario } from '../widgets.js?v=4';
-import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js?v=4';
-import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js?v=4';
-import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js?v=4';
-import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js?v=4';
-import { formPlano } from './hoje.js?v=4';
-import { CAMPOS_PERFIL, perfilDaIA } from '../perfil.js?v=4';
+import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js?v=6';
+import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js?v=6';
+import { seletor, calendario } from '../widgets.js?v=6';
+import { hoje, somaDias, inicioSemana, resumoSemana, resumoDoPeriodo, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js?v=6';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
+import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js?v=6';
+import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js?v=6';
+import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js?v=6';
+import { formPlano } from './hoje.js?v=6';
+import { CAMPOS_PERFIL, perfilDaIA } from '../perfil.js?v=6';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const SEMANA = [1, 2, 3, 4, 5, 6, 0];
@@ -25,6 +26,7 @@ export const menu = () => html`
   ${topo('Mais')}
   <ul class="linhas">
     ${[
+      ['registros', 'list-checks', 'Registros', 'Consultar e editar tudo que foi lançado'],
       ['metricas', 'chart-line-up', 'Métricas', 'Gráficos semana a semana'],
       ['semana', 'chart-bar', 'Semana', 'Revisão com os números reais'],
       ['tarefas', 'list-checks', 'Tarefas', 'Avulsas, fora do plano do dia'],
@@ -36,10 +38,12 @@ export const menu = () => html`
 
 // ---------- Semana ----------
 
+let periodoRevisao = null;
 export function semana(ref) {
   const atual = inicioSemana(hoje());
   const ini = /^\d{4}-\d{2}-\d{2}$/.test(ref || '') ? inicioSemana(ref) : atual;
-  const s = resumoSemana(state, ini);
+  const [desde, ate] = periodoRevisao ? lerPeriodo(periodoRevisao) : [ini, somaDias(ini, 6) > hoje() ? hoje() : somaDias(ini, 6)];
+  const s = resumoDoPeriodo(state, desde, ate);
   const f = funil(state.leads);
   const negocio = COMERCIAIS.reduce((t, a) => t + (s.minutos[a] || 0), 0);
   const conteudo = s.minutos.conteudo || 0;
@@ -48,6 +52,7 @@ export function semana(ref) {
 
   return html`
     ${topo('Semana', `${dataCurta(s.ini)} a ${dataCurta(s.fim)}`)}
+    ${filtroPeriodo('Revisão', `${desde}|${ate}`, 'semana.periodo', 'semana')}
     <nav class="barra" aria-label="Trocar de semana">
       <a class="btn btn-t" href="#/semana/${somaDias(ini, -7)}">${icon('caret-left', 18)} Anterior</a>
       ${ini < atual && html`<a class="btn btn-t" href="#/semana/${somaDias(ini, 7)}">Próxima ${icon('caret-right', 18)}</a>`}
@@ -131,6 +136,7 @@ export function tarefas() {
                 <span class="linha">
                   <span class="principal">${t.titulo}</span>
                   <span class="lado">
+                    <button class="ic-btn" data-act="registro.abrir" data-lista="tasks" data-id="${t.id}" aria-label="Editar: ${t.titulo}">${icon('gear-six', 18)}</button>
                     <button class="ic-btn" data-act="tarefa.concluir" data-id="${t.id}" aria-label="Concluir: ${t.titulo}">${icon('check')}</button>
                     <button class="ic-btn" data-act="tarefa.excluir" data-id="${t.id}" aria-label="Excluir: ${t.titulo}">${icon('trash', 18)}</button>
                   </span>
@@ -144,7 +150,7 @@ export function tarefas() {
       <details class="bloco">
         ${resumo('Concluídas recentes')}
         <ul class="linhas compacta">
-          ${feitas.map((t) => html`<li><span class="linha"><span class="principal">${t.titulo}</span><span class="lado">${dataCurta(t.feitaEm)}</span></span></li>`)}
+          ${feitas.map((t) => html`<li><button class="linha" data-act="registro.abrir" data-lista="tasks" data-id="${t.id}"><span class="principal">${t.titulo}</span><span class="lado">${dataCurta(t.feitaEm)} · Editar</span></button></li>`)}
         </ul>
       </details>`}`;
 }
@@ -319,6 +325,7 @@ export function config() {
 const inteiro = (v) => Math.max(0, Math.round(num(v) || 0));
 
 Object.assign(actions, {
+  'semana.periodo': ({ valor }) => { periodoRevisao = valor; },
   'config.perfil': (f, form) => {
     const perfil = {};
     for (const chave of Object.keys(CAMPOS_PERFIL)) {

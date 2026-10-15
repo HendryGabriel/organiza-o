@@ -1,7 +1,7 @@
-import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js?v=4';
-import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js?v=4';
-import { seletor, calendario } from '../widgets.js?v=4';
-import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS, CANAIS } from '../logic.js?v=4';
+import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js?v=6';
+import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js?v=6';
+import { seletor, calendario } from '../widgets.js?v=6';
+import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS, CANAIS } from '../logic.js?v=6';
 
 const OPCOES_DE_CANAL = Object.fromEntries(CANAIS.map((c) => [c, c]));
 const FILTROS = { ativos: 'Em andamento', todos: 'Todos', ...ETAPAS };

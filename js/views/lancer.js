@@ -1,12 +1,13 @@
 // Dinheiro: o placar do Lancer, a análise do mês (de onde vem, para onde vai, onde economizar) e os lançamentos.
-import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js?v=4';
-import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js?v=4';
-import { seletor, calendario } from '../widgets.js?v=4';
-import { hoje, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js?v=4';
-import { ultimasSemanas } from '../metricas.js?v=4';
-import { fluxoDoMes, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js?v=4';
-import { mesesPerto } from './extrato.js?v=4';
-import { linha, barrasH } from '../graficos.js?v=4';
+import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js?v=6';
+import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js?v=6';
+import { seletor, calendario } from '../widgets.js?v=6';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
+import { hoje, somaDias, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js?v=6';
+import { ultimasSemanas } from '../metricas.js?v=6';
+import { fluxoDoMes, fluxoDoIntervalo, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js?v=6';
+import { mesesPerto } from './extrato.js?v=6';
+import { linha, barrasH } from '../graficos.js?v=6';
 
 const ABAS = { placar: 'Lancer', analise: 'Análise', lancamentos: 'Lançamentos' };
 const SUBTITULO = {
@@ -142,19 +143,24 @@ function placar() {
 // ---------- Análise do mês ----------
 
 let mesEscolhido = null; // null = mês corrente
+let periodoFinanceiro = null;
 
 function analise() {
   const ref = hoje();
   const atual = mesDe(ref);
-  const mes = mesEscolhido || atual;
+  const [inicio, fim] = lerPeriodo(periodoFinanceiro, 'mes');
+  const mes = fim.slice(0, 7);
   const meses = Object.fromEntries([...Array(6)].map((_, i) => {
     const m = mesAntes(atual, i);
     const nome = nomeDoMes.format(parseData(`${m}-15`));
     return [m, nome[0].toUpperCase() + nome.slice(1)];
   }));
   const vence = state.settings.cartaoVence || 10;
-  const f = fluxoDoMes(state.financas, mes, '31', vence);
-  const e = economia(state.financas, mes, ref, vence);
+  const f = fluxoDoIntervalo(state.financas, inicio, fim, vence);
+  const variaveis = f.saidas.filter((l) => !['moradia', 'dividas', 'impostos', 'negocio', 'cartao'].includes(l.chave));
+  const dias = Math.round((parseData(fim) - parseData(inicio)) / 864e5) + 1;
+  const anterior = fluxoDoIntervalo(state.financas, somaDias(inicio, -dias), somaDias(inicio, -1), vence);
+  const e = { linhas: variaveis.map((l) => { const media = anterior.saiu ? anterior.saidas.find((a) => a.chave === l.chave)?.valor || 0 : null; return { ...l, parte: f.saiu ? l.valor / f.saiu : 0, media, acima: media == null ? null : l.valor - media }; }), meses: anterior.saiu ? 1 : 0, corte10: Math.round(variaveis.slice(0, 3).reduce((s, l) => s + l.valor, 0) * 0.1) };
   const futuras = proximasFaturas(state.financas, mes);
   const p = prospeccaoEmDinheiro(state, ref);
   const parte = (linhas, todo) => linhas.map((l) => ({ nome: l.nome, valor: l.valor, nota: pct(l.valor / todo), detalhe: `${pct(l.valor / todo)} do total` }));
@@ -162,7 +168,7 @@ function analise() {
 
   return html`
     <div class="barra filtros">
-      ${seletor('Mês', 'mes', meses, mes, { mudou: 'fin.mes', oculto: true })}
+      ${filtroPeriodo('Período', `${inicio}|${fim}`, 'fin.periodo', 'mes')}
       <button class="btn btn-s" data-act="fin.novo">${icon('plus')} Lançar</button>
     </div>
 
@@ -171,13 +177,13 @@ function analise() {
       <div><dt>saiu</dt><dd class="num">${dinheiroCurto(f.saiu)}</dd></div>
       <div><dt>${f.sobra < 0 ? 'faltou' : 'sobrou'}</dt><dd class="num">${dinheiroCurto(Math.abs(f.sobra))}</dd>${f.entrou > 0 && f.sobra > 0 && html`<dd class="sub">${pct(f.sobra / f.entrou)} do que entrou</dd>`}</div>
     </dl>
-    ${f.guardado !== 0 && html`<p class="nota">${f.guardado > 0 ? 'Guardado na' : 'Retirado da'} reserva do Lancer neste mês: ${dinheiro(Math.abs(f.guardado))}.</p>`}
-    ${f.entrou + f.saiu === 0 && html`<p class="nota">Nada lançado neste mês. Conte para a assistente o que entrou e o que você gastou, ou use o botão Lançar.</p>`}
+    ${f.guardado !== 0 && html`<p class="nota">${f.guardado > 0 ? 'Guardado na' : 'Retirado da'} reserva do Lancer neste período: ${dinheiro(Math.abs(f.guardado))}.</p>`}
+    ${f.entrou + f.saiu === 0 && html`<p class="nota">Nada lançado neste período. Conte para a assistente o que entrou e o que você gastou, ou use o botão Lançar.</p>`}
 
     <section class="bloco">
       <div class="painel">
-        ${barrasH({ titulo: 'De onde vem', sub: 'Receita que já caiu na conta, por fonte.', linhas: parte(f.entradas, f.entrou), formato: dinheiro, colunaNota: 'Parte', vazio: 'Nenhuma receita neste mês.' })}
-        ${barrasH({ titulo: 'Para onde vai', sub: 'Gastos e impostos, por categoria.', linhas: parte(f.saidas, f.saiu), formato: dinheiro, colunaNota: 'Parte', vazio: 'Nenhum gasto neste mês.' })}
+        ${barrasH({ titulo: 'De onde vem', sub: 'Receita que já caiu na conta, por fonte.', linhas: parte(f.entradas, f.entrou), formato: dinheiro, colunaNota: 'Parte', vazio: 'Nenhuma receita neste período.' })}
+        ${barrasH({ titulo: 'Para onde vai', sub: 'Gastos e impostos, por categoria.', linhas: parte(f.saidas, f.saiu), formato: dinheiro, colunaNota: 'Parte', vazio: 'Nenhum gasto neste período.' })}
       </div>
     </section>
 
@@ -214,10 +220,10 @@ function analise() {
                 </span>
               </li>`)}
           </ul>
-          <p class="achado">Cortar 10% ${e.linhas.length > 1 ? `dos ${Math.min(3, e.linhas.length)} maiores` : 'desse gasto'} libera <b>${dinheiro(e.corte10)}</b> por mês.</p>
+          <p class="achado">Cortar 10% ${e.linhas.length > 1 ? `dos ${Math.min(3, e.linhas.length)} maiores` : 'desse gasto'} libera <b>${dinheiro(e.corte10)}</b> no período.</p>
           <p class="nota">${e.meses > 0
-            ? `Média ${e.meses === 1 ? 'do mês anterior' : `dos ${e.meses} meses anteriores`} com lançamento${e.parcial ? `, contada até o dia ${Number(ref.slice(8))} de cada um` : ''}.`
-            : 'Ainda sem mês anterior para comparar.'}</p>`}
+            ? 'Comparação com o período anterior de mesma duração.'
+            : 'Ainda sem gastos no período anterior para comparar.'}</p>`}
     </section>
 
     <section class="bloco" aria-labelledby="h-rende">
@@ -230,7 +236,7 @@ function analise() {
             <div><dt>por cliente fechado</dt><dd class="num">${dinheiroCurto(p.ticket)}</dd></div>
             <div><dt>por abordagem</dt><dd class="num">${dinheiroCurto(p.porAbordagem)}</dd><dd class="sub">${p.abordagensPorCliente} ${p.abordagensPorCliente === 1 ? 'abordagem' : 'abordagens'} para 1 cliente</dd></div>
           </dl>
-          <p class="achado">No ritmo das últimas 4 semanas, a conta dá <b>${dinheiro(p.porMesNoRitmo)}</b> por mês.</p>
+          <p class="achado">No ritmo das últimas 4 semanas, a conta dá <b>${dinheiro(p.porMesNoRitmo)}</b> no período.</p>
           <p class="nota">${umaCasa(p.novasPorSemana)} ${p.novasPorSemana === 1 ? 'abordagem nova' : 'abordagens novas'} por semana. Cada abordagem a mais por semana soma cerca de ${dinheiro(Math.round((52 / 12) * p.porAbordagem))} por mês. Conta feita com ${p.funil.ganhos} ${p.funil.ganhos === 1 ? 'cliente' : 'clientes'} e ${p.funil.abordados} abordados: com base pequena, é só uma referência.</p>`}
       ${p.gargalo && html`
         <p class="achado">Onde o funil mais vaza: <b>${p.gargalo.nome}</b>, ${p.gargalo.valor} em ${p.gargalo.base}.</p>
@@ -277,6 +283,7 @@ export function render(aba) {
 }
 
 Object.assign(actions, {
+  'fin.periodo': ({ valor }) => { periodoFinanceiro = valor; },
   'fin.meta': ({ meta }, form) => {
     const v = centavos(meta);
     if (!(v > 0)) return invalido(form.elements.meta, 'Use um valor como 85.000.');

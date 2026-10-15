@@ -274,9 +274,13 @@ export function progressoDoJogo(state, ref) {
   return { xp, nivel: 1 + Math.floor(xp / 250), atual: xp % 250, proximo: 250, missoes };
 }
 
-export function resumoSemana(state, ref) {
+export function resumoSemana(state, ref, limites) {
   const ini = inicioSemana(ref);
   const fim = somaDias(ini, 6);
+  return resumoDoPeriodo(state, limites && limites[0] > ini ? limites[0] : ini, limites && limites[1] < fim ? limites[1] : fim);
+}
+
+export function resumoDoPeriodo(state, ini, fim) {
   const na = (d) => d >= ini && d <= fim;
   const feitos = state.feitos.filter((f) => na(f.data));
   const minutos = {};

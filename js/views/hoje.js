@@ -1,11 +1,11 @@
 // Tela Hoje: o dia inteiro em uma página. Primeiro a assistente (conte o dia ou pergunte),
 // depois o que já está registrado, a tarefa sugerida e os atalhos.
-import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js?v=4';
-import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js?v=4';
-import { seletor } from '../widgets.js?v=4';
-import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS, progressoDoJogo } from '../logic.js?v=4';
-import { balancoDoDia } from '../analise.js?v=4';
-import { caixaDaAssistente } from './assistente.js?v=4';
+import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js?v=6';
+import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js?v=6';
+import { seletor } from '../widgets.js?v=6';
+import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS, progressoDoJogo } from '../logic.js?v=6';
+import { balancoDoDia } from '../analise.js?v=6';
+import { caixaDaAssistente } from './assistente.js?v=6';
 
 const MODOS = [
   [5, '5 min', 'Dia difícil'],
@@ -103,15 +103,16 @@ function registradoHoje(d, dia) {
   return html`
     <section class="bloco" aria-labelledby="h-registrado">
       <h2 id="h-registrado" class="com-lado">Registrado hoje${refeicoes.length > 0 && html`<small>${n(kcal)}${metaKcal > 0 && html` de ${n(metaKcal)}`} kcal</small>`}</h2>
+      <p class="nota"><a href="#/registros">Ver e editar registros de outros dias ↗</a></p>
       ${nada
         ? html`<p class="nota">Nada ainda. Conte o seu dia para a assistente, ou use os atalhos mais abaixo.</p>`
         : html`
           <ul class="linhas compacta">
             ${treinos.map((t) => linha('Treino', t.tipo || 'Treino', t.min ? `${t.min} min` : '', 'treino.abrir', t.id))}
             ${refeicoes.map((r) => linha('Refeição', r.nome, html`<b class="num">${n(r.kcal)}</b> kcal`, 'comida.abrir', r.id))}
-            ${feitos.map((f) => linha(`Ação, ${AREAS[f.area] || 'Outras'}`, f.titulo, f.min ? `${f.min} min` : ''))}
+            ${feitos.map((f) => html`<li><button class="linha" data-act="registro.abrir" data-lista="feitos" data-id="${f.id}"><span class="principal">${f.titulo}</span><span class="lado">Editar</span><span class="detalhe">${AREAS[f.area]} · ${f.min || 0} min</span></button></li>`)}
             ${lancamentos.map((l) => linha(TIPOS[l.tipo], l.descricao || TIPOS[l.tipo], l.parcela ? `${l.parcela.split('/')[1]}x de ${dinheiro(l.valor)}` : dinheiro(l.valor), 'fin.abrir', l.id))}
-            ${peso && linha('Peso', `${peso.peso.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg`, '')}
+            ${peso && html`<li><button class="linha" data-act="registro.abrir" data-lista="medidas" data-id="${peso.id}"><span class="principal">${peso.peso} kg</span><span class="lado">Editar</span><span class="detalhe">Peso</span></button></li>`}
           </ul>
           ${balanco.saldo != null && html`
             <p class="nota">Até agora, ${n(balanco.comeu)} kcal para um gasto estimado de ${n(balanco.gasto)} no dia. <a href="#/corpo/medidas">Ver o balanço</a></p>`}
@@ -119,7 +120,7 @@ function registradoHoje(d, dia) {
             <details class="relato">
               ${resumo('Relato do dia')}
               <p class="citacao">${dia.nota}</p>
-              <div class="acoes"><button class="btn btn-s" data-act="hoje.virarVideo">Virar vídeo</button></div>
+              <div class="acoes"><button class="btn btn-s" data-act="registro.abrir" data-lista="dias" data-id="${d}">Editar relato</button><button class="btn btn-s" data-act="hoje.virarVideo">Virar vídeo</button></div>
             </details>`}`}
     </section>`;
 }

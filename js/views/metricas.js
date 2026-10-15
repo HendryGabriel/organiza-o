@@ -1,14 +1,15 @@
 // Painel de métricas: os mesmos registros do app, vistos semana a semana.
-import { state, actions } from '../core.js?v=4';
-import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js?v=4';
-import { seletor } from '../widgets.js?v=4';
-import { hoje, somaDias } from '../logic.js?v=4';
-import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js?v=4';
-import { barras, barrasH, linha } from '../graficos.js?v=4';
-import { STATUS } from './conteudo.js?v=4';
+import { state, actions } from '../core.js?v=6';
+import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js?v=6';
+import { seletor } from '../widgets.js?v=6';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
+import { hoje, somaDias, parseData, inicioSemana } from '../logic.js?v=6';
+import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js?v=6';
+import { barras, barrasH, linha } from '../graficos.js?v=6';
+import { STATUS } from './conteudo.js?v=6';
 
 const PERIODOS = { 4: 'Últimas 4 semanas', 8: 'Últimas 8 semanas', 12: 'Últimas 12 semanas' };
-let periodo = '8';
+let periodo = null;
 
 const reaisCurtos = (cent) => `R$ ${compacto(cent / 100)}`;
 const kg = (v) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg`;
@@ -21,16 +22,23 @@ function variacao(agora, antes, formato = n) {
 }
 
 export function render() {
-  const qtd = Number(periodo);
-  const semanas = semanasAte(hoje(), qtd);
-  const serie = serieSemanal(state, semanas);
-  const antes = serieSemanal(state, semanasAte(somaDias(semanas[0], -1), qtd));
+  const [inicio, fim] = lerPeriodo(periodo, '30');
+  const comparar = periodo?.split('|')[2] !== '0';
+  const dias = Math.round((parseData(fim) - parseData(inicio)) / 864e5) + 1;
+  const qtd = dias / 7;
+  const semanas = [];
+  for (let dia = inicioSemana(inicio); dia <= fim; dia = somaDias(dia, 7)) semanas.push(dia);
+  const serie = serieSemanal(state, semanas, [inicio, fim]);
+  const fimAntes = somaDias(inicio, -1), inicioAntes = somaDias(inicio, -dias);
+  const semanasAntes = [];
+  for (let dia = inicioSemana(inicioAntes); dia <= fimAntes; dia = somaDias(dia, 7)) semanasAntes.push(dia);
+  const antes = serieSemanal(state, semanasAntes, [inicioAntes, fimAntes]);
   const coluna = (campo) => serie.map((s) => s[campo]);
   // Todo gráfico no tempo usa as mesmas semanas e destaca a atual, que ainda está em andamento.
   const noTempo = {
     rotulos: semanas.map(dataCurta),
     longos: serie.map((s) => `Semana de ${dataCurta(s.ini)} a ${dataCurta(s.fim)}`),
-    destaque: 'semana atual',
+    destaque: fim >= inicioSemana(hoje()) ? 'semana atual' : '',
     chave: false,
   };
   const { videosSemana, diasTreino, metaKcal, metaLancer } = state.settings;
@@ -38,7 +46,7 @@ export function render() {
   const acoes = soma(serie, 'negocio');
   const videos = soma(serie, 'videos');
   const treinos = soma(serie, 'treinos');
-  const planejados = qtd * diasTreino.length;
+  const planejados = Math.round(qtd * diasTreino.length);
   const reserva = serie.at(-1).reservado;
   const reservaNoPeriodo = reserva - antes.at(-1).reservado;
   const [minNegocio, minConteudo, minTotal] = ['minNegocio', 'minConteudo', 'minTotal'].map((c) => soma(serie, c));
@@ -50,13 +58,13 @@ export function render() {
     ${topo('Métricas', 'Os registros do app, semana a semana')}
 
     <div class="barra filtros">
-      ${seletor('Período', 'periodo', PERIODOS, periodo, { mudou: 'metricas.periodo', oculto: true })}
+      ${filtroPeriodo('Período', periodo || `${inicio}|${fim}`, 'metricas.periodo', '30', '', true)}
     </div>
 
     <dl class="stats quatro">
-      <div><dt>ações comerciais</dt><dd class="num">${n(acoes)}</dd><dd class="sub">${variacao(acoes, soma(antes, 'negocio'))}</dd></div>
-      <div><dt>vídeos publicados</dt><dd class="num">${n(videos)}<small>/${qtd * videosSemana}</small></dd><dd class="sub">${variacao(videos, soma(antes, 'videos'))}</dd></div>
-      <div><dt>treinos</dt><dd class="num">${n(treinos)}${planejados > 0 && html`<small>/${planejados}</small>`}</dd><dd class="sub">${variacao(treinos, soma(antes, 'treinos'))}</dd></div>
+      <div><dt>ações comerciais</dt><dd class="num">${n(acoes)}</dd><dd class="sub">${comparar ? variacao(acoes, soma(antes, 'negocio')) : ''}</dd></div>
+      <div><dt>vídeos publicados</dt><dd class="num">${n(videos)}<small>/${Math.round(qtd * videosSemana)}</small></dd><dd class="sub">${comparar ? variacao(videos, soma(antes, 'videos')) : ''}</dd></div>
+      <div><dt>treinos</dt><dd class="num">${n(treinos)}${planejados > 0 && html`<small>/${planejados}</small>`}</dd><dd class="sub">${comparar ? variacao(treinos, soma(antes, 'treinos')) : ''}</dd></div>
       <div><dt>reservado para o Lancer</dt><dd class="num">${dinheiroCurto(reserva)}</dd><dd class="sub">${reservaNoPeriodo === 0 ? 'sem aporte no período' : `${reservaNoPeriodo > 0 ? '+' : '−'}${dinheiroCurto(Math.abs(reservaNoPeriodo))} no período`}</dd></div>
     </dl>
 
@@ -108,7 +116,7 @@ export function render() {
               titulo: 'Funil dos leads do período',
               sub: 'Até onde chegaram os leads cadastrados nestas semanas.',
               colunaNota: 'Passagem',
-              linhas: funilDoPeriodo(state.leads, semanas[0]).map((e) => ({
+              linhas: funilDoPeriodo(state.leads.filter((l) => l.criadoEm <= fim), inicio).map((e) => ({
                 nome: e.nome,
                 valor: e.valor,
                 nota: e.taxa == null ? '' : pct(e.taxa),

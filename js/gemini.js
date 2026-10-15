@@ -1,7 +1,7 @@
 // Chamadas à IA do Google (Gemini API), direto do navegador com a chave do próprio usuário.
-import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js?v=4';
-import { classeValida, movimentosDaIA } from './extrato.js?v=4';
-import { perfilDaIA } from './perfil.js?v=4';
+import { normalizarRefeicao, normalizarDia, AREAS, TIPOS, CANAIS, RENDAS, GASTOS } from './logic.js?v=6';
+import { classeValida, movimentosDaIA } from './extrato.js?v=6';
+import { perfilDaIA } from './perfil.js?v=6';
 
 // A chave fica fora do estado do app para nunca entrar no backup exportado.
 const CHAVE = 'hendry.gemini';

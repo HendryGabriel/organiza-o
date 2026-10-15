@@ -1,11 +1,11 @@
 // A assistente: a pessoa escreve ou grava, a IA responde e separa o que foi contado em registros.
 // Nada entra no app sem a confirmação dela, e dá para desfazer logo em seguida.
-import { state, actions, commit, registrarFeito, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=4';
-import { html, icon, dataCurta, dataLonga, dinheiro, n } from '../ui.js?v=4';
-import { hoje, somaMacros, mudarEtapa, financas, AREAS, TIPOS, CATEGORIAS, FUNIL } from '../logic.js?v=4';
-import { contextoDaAssistente, faturaDe, parcelar } from '../analise.js?v=4';
-import { conversar, config as gemini } from '../gemini.js?v=4';
-import { gravar, parar, cancelar } from '../audio.js?v=4';
+import { state, actions, commit, registrarFeito, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=6';
+import { html, icon, dataCurta, dataLonga, dinheiro, n } from '../ui.js?v=6';
+import { hoje, somaMacros, mudarEtapa, financas, AREAS, TIPOS, CATEGORIAS, FUNIL } from '../logic.js?v=6';
+import { contextoDaAssistente, faturaDe, parcelar } from '../analise.js?v=6';
+import { conversar, config as gemini } from '../gemini.js?v=6';
+import { gravar, parar, cancelar } from '../audio.js?v=6';
 
 const LIMITE_DO_AUDIO = 3 * 60 * 1000;
 const MEMORIA = 10; // falas que voltam para a IA a cada mensagem

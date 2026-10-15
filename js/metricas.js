@@ -1,18 +1,20 @@
 // Números por trás dos gráficos. Regras puras (sem DOM), para rodar também em `node --test`.
 // Todo gráfico no tempo usa a mesma unidade do app: a semana, de segunda a domingo.
-import { somaDias, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js?v=4';
-import { balancoDoDia } from './analise.js?v=4';
+import { somaDias, parseData, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js?v=6';
+import { balancoDoDia } from './analise.js?v=6';
 
 // As `n` semanas que terminam na semana de `ref`, da mais antiga para a atual (segunda-feira de cada uma).
 export const semanasAte = (ref, n) => [...Array(n)].map((_, i) => somaDias(inicioSemana(ref), -7 * (n - 1 - i)));
 
-export function serieSemanal(state, semanas) {
-  return semanas.map((ini) => {
-    const fim = somaDias(ini, 6);
-    const r = resumoSemana(state, ini);
+export function serieSemanal(state, semanas, limites) {
+  return semanas.map((semana) => {
+    const ini = limites && limites[0] > semana ? limites[0] : semana;
+    const fim = limites && limites[1] < somaDias(semana, 6) ? limites[1] : somaDias(semana, 6);
+    const r = resumoSemana(state, semana, limites);
     const conteudo = r.feitos.filter((f) => f.area === 'conteudo').length;
     const pesos = state.medidas.filter((m) => m.data >= ini && m.data <= fim).sort((a, b) => a.data.localeCompare(b.data));
-    const balancos = [...Array(7)].map((_, i) => balancoDoDia(state, somaDias(ini, i))).filter((d) => d.comeu != null && d.gasto != null);
+    const qtdDias = Math.round((parseData(fim) - parseData(ini)) / 864e5) + 1;
+    const balancos = [...Array(qtdDias)].map((_, i) => balancoDoDia(state, somaDias(ini, i))).filter((d) => d.comeu != null && d.gasto != null);
     return {
       ini,
       fim,

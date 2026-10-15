@@ -1,11 +1,12 @@
-import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=4';
-import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js?v=4';
-import { seletor, calendario } from '../widgets.js?v=4';
-import { hoje, somaDias, inicioSemana, diaSemana, somaMacros, num } from '../logic.js?v=4';
-import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS, categoriaDoTreino } from '../analise.js?v=4';
-import { reduzirFoto, analisarRefeicao } from '../gemini.js?v=4';
-import { ultimasSemanas, caloriasPorDia } from '../metricas.js?v=4';
-import { barras, linha } from '../graficos.js?v=4';
+import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=6';
+import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js?v=6';
+import { seletor, calendario } from '../widgets.js?v=6';
+import { hoje, somaDias, parseData, inicioSemana, diaSemana, somaMacros, num } from '../logic.js?v=6';
+import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS, categoriaDoTreino } from '../analise.js?v=6';
+import { reduzirFoto, analisarRefeicao } from '../gemini.js?v=6';
+import { ultimasSemanas, caloriasPorDia } from '../metricas.js?v=6';
+import { barras, linha } from '../graficos.js?v=6';
+import { filtroPeriodo, lerPeriodo } from '../periodos.js?v=6';
 
 const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Peso' };
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -119,6 +120,7 @@ function treino() {
 // ---------- Alimentação ----------
 
 let diaEscolhido = null; // null = hoje
+let periodoComida = null;
 let foto = null; // data URL da foto em análise
 let analise = null;
 
@@ -140,7 +142,9 @@ function formRefeicao(r) {
       ${r?.itens?.length > 0 && html`
         <section>
           <h3>Itens</h3>
-          <ul class="historico">${r.itens.map((i) => html`<li><b>${i.nome}</b> ${i.porcao} · ${n(i.kcal)} kcal</li>`)}</ul>
+          <p class="nota">Os totais acima são usados no gráfico. Marque a opção abaixo para recalculá-los pelos alimentos.</p>
+          <label class="marcar"><input type="checkbox" name="recalcularItens">Recalcular os totais pelos alimentos</label>
+          ${r.itens.map((i, indice) => html`<fieldset class="grupo"><legend>Alimento ${indice + 1}</legend>${campo('Alimento', html`<input name="item-${indice}-nome" value="${i.nome}">`)}${campo('Porção', html`<input name="item-${indice}-porcao" value="${i.porcao || ''}">`)}<div class="dupla">${['kcal', 'p', 'c', 'g'].map((macro) => campo({ kcal: 'Calorias', p: 'Proteína (g)', c: 'Carboidrato (g)', g: 'Gordura (g)' }[macro], html`<input name="item-${indice}-${macro}" inputmode="decimal" value="${i[macro] || 0}">`))}</div></fieldset>`)}
         </section>`}
       <footer class="dlg-acoes">
         ${r && html`<button type="button" class="btn btn-t perigo" data-act="comida.excluir" data-id="${r.id}">Excluir</button>`}
@@ -212,20 +216,21 @@ async function analisar(dica) {
 
 function comida() {
   const d = diaEscolhido || hoje();
-  const doDia = state.refeicoes.filter((r) => r.data === d).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
+  const [inicio, fim] = periodoComida ? lerPeriodo(periodoComida) : [d, d];
+  const doDia = state.refeicoes.filter((r) => r.data >= inicio && r.data <= fim).sort((a, b) => (a.data + (a.hora || '')).localeCompare(b.data + (b.hora || '')));
   const total = somaMacros(doDia);
   const { metaKcal, metaProteina } = state.settings;
-  const dias = caloriasPorDia(state, hoje(), 14);
+  const dias = caloriasPorDia(state, fim, Math.round((parseData(fim) - parseData(inicio)) / 864e5) + 1);
 
   return html`
     <div class="barra">
-      ${calendario('Dia', 'dia', d, { max: hoje(), obrigatorio: true, mudou: 'comida.dia', oculto: true })}
+      ${filtroPeriodo('Refeições', `${inicio}|${fim}`, 'comida.periodo', 'hoje')}
       ${d !== hoje() && html`<button class="btn btn-t" data-act="comida.hoje">Voltar para hoje</button>`}
     </div>
 
     <p class="placar-kcal">
       <b class="num">${n(total.kcal)}</b>
-      <span>${metaKcal > 0 ? html`de ${n(metaKcal)} kcal` : 'kcal'}</span>
+      <span>${metaKcal > 0 && inicio === fim ? html`de ${n(metaKcal)} kcal` : 'kcal no período'}</span>
     </p>
     <p class="nota">${macros(total)}${metaProteina > 0 && html` · meta de proteína ${n(metaProteina)} g`}</p>
 
@@ -236,7 +241,7 @@ function comida() {
     </div>
 
     <section class="bloco" aria-labelledby="h-refeicoes">
-      <h2 id="h-refeicoes">Refeições de ${d === hoje() ? 'hoje' : dataMedia(d)}</h2>
+      <h2 id="h-refeicoes">Refeições ${inicio === fim ? `de ${dataMedia(inicio)}` : `de ${dataCurta(inicio)} a ${dataCurta(fim)}`}</h2>
       ${doDia.length === 0
         ? vazio('Nada registrado neste dia. Tire uma foto do prato ou conte para a assistente o que comeu: a IA estima as calorias.')
         : html`
@@ -254,7 +259,7 @@ function comida() {
 
     <section class="bloco">
       ${barras({
-        titulo: 'Calorias nos últimos 14 dias',
+        titulo: 'Consumo e gastos no período',
         rotulos: dias.map((x) => x.data.slice(8)),
         longos: dias.map((x) => dataMedia(x.data)),
         sub: 'Gasto total = repouso e rotina + musculação + cárdio. Preencha o perfil e o peso para estimar gastos.',
@@ -406,7 +411,7 @@ function medidas() {
               <li>
                 <span class="linha">
                   <span class="principal">${dataMedia(m.data)}</span>
-                  <span class="lado"><b class="num">${kg(m.peso)}</b> kg <button class="ic-btn" data-act="medida.excluir" data-id="${m.id}" aria-label="Excluir medida de ${dataCurta(m.data)}">${icon('trash', 18)}</button></span>
+                  <span class="lado"><b class="num">${kg(m.peso)}</b> kg <button class="ic-btn" data-act="registro.abrir" data-lista="medidas" data-id="${m.id}" aria-label="Editar medida de ${dataCurta(m.data)}">${icon('gear-six', 18)}</button><button class="ic-btn" data-act="medida.excluir" data-id="${m.id}" aria-label="Excluir medida de ${dataCurta(m.data)}">${icon('trash', 18)}</button></span>
                   ${m.obs && html`<span class="detalhe">${m.obs}</span>`}
                 </span>
               </li>`)}
@@ -425,6 +430,7 @@ export function render(aba) {
 }
 
 Object.assign(actions, {
+  'comida.periodo': ({ valor }) => { periodoComida = valor; diaEscolhido = null; },
   // ----- treino
   'treino.novo': () => {
     abrir('Registrar treino', formTreino());
@@ -463,6 +469,7 @@ Object.assign(actions, {
     diaEscolhido = valor && valor !== hoje() ? valor : null;
   },
   'comida.hoje': () => {
+    periodoComida = null;
     diaEscolhido = null;
   },
   'comida.foto': async (_, entrada) => {
@@ -516,6 +523,10 @@ Object.assign(actions, {
     let r = state.refeicoes.find((x) => x.id === f.id);
     if (!r) state.refeicoes.push((r = { id: uid(), hora: new Date().toTimeString().slice(0, 5), origem: 'manual' }));
     Object.assign(r, { nome: texto(f.nome), data: f.data, kcal: inteiro(f.kcal), p: inteiro(f.p), c: inteiro(f.c), g: inteiro(f.g) });
+    if (r.itens?.length) {
+      r.itens = r.itens.map((i, indice) => ({ ...i, nome: texto(f[`item-${indice}-nome`]), porcao: texto(f[`item-${indice}-porcao`]), ...Object.fromEntries(['kcal', 'p', 'c', 'g'].map((m) => [m, Math.max(0, num(f[`item-${indice}-${m}`]) || 0)])) }));
+      if (f.recalcularItens === 'on') Object.assign(r, somaMacros(r.itens));
+    }
     fechar();
   },
   'comida.excluir': ({ id }) => {

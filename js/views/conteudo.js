@@ -1,11 +1,11 @@
-import { state, actions, abrir, fechar, aviso, uid, texto } from '../core.js?v=4';
-import { html, icon, topo, campo, vazio, dataMedia, dataCurta } from '../ui.js?v=4';
-import { seletor, calendario } from '../widgets.js?v=4';
-import { hoje, resumoSemana, dataPublicacao, dataRegistroVideo } from '../logic.js?v=4';
-import { ultimasSemanas } from '../metricas.js?v=4';
-import { barras } from '../graficos.js?v=4';
-import { gerarRoteiro } from '../gemini.js?v=4';
-import { perfilDaIA } from '../perfil.js?v=4';
+import { state, actions, abrir, fechar, aviso, uid, texto } from '../core.js?v=6';
+import { html, icon, topo, campo, vazio, dataMedia, dataCurta } from '../ui.js?v=6';
+import { seletor, calendario } from '../widgets.js?v=6';
+import { hoje, resumoSemana, dataPublicacao, dataRegistroVideo } from '../logic.js?v=6';
+import { ultimasSemanas } from '../metricas.js?v=6';
+import { barras } from '../graficos.js?v=6';
+import { gerarRoteiro } from '../gemini.js?v=6';
+import { perfilDaIA } from '../perfil.js?v=6';
 
 export const STATUS = {
   ideia: 'Ideia',

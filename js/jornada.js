@@ -1,5 +1,5 @@
-import { html, icon, n, dinheiroCurto } from './ui.js?v=4';
-import { hoje, resumoSemana, progressoDoJogo, financas, funil, inicioSemana, dataRegistroVideo } from './logic.js?v=4';
+import { html, icon, n, dinheiroCurto } from './ui.js?v=6';
+import { hoje, resumoSemana, progressoDoJogo, financas, funil, inicioSemana, dataRegistroVideo } from './logic.js?v=6';
 
 const ARENAS = {
   hoje: ['CENTRAL DE MISSÕES', 'Um passo hoje. Um novo nível amanhã.', 'Escolha sua missão, registre o que fez e acompanhe a sua evolução.', 'lightning'],
@@ -11,6 +11,7 @@ const ARENAS = {
   tarefas: ['DIÁRIO DE MISSÕES', 'Tire as ideias do papel.', 'Organize as tarefas extras, escolha o próximo passo e marque suas conquistas.', 'list-checks'],
   rotina: ['MAPA DA CAMPANHA', 'Uma rota para cada dia.', 'Monte seu plano para dias difíceis, normais e livres. Seu ritmo define o caminho.', 'calendar-check'],
   config: ['BASE DE OPERAÇÕES', 'Prepare as ferramentas da sua jornada.', 'Personalize suas metas e cuide do perfil, dos backups e das conexões.', 'gear-six'],
+  registros: ['ARQUIVO DA JORNADA', 'Seu histórico pode ser corrigido.', 'Abra um lançamento para ajustar os dados, mesmo que tenha vindo da assistente.', 'list-checks'],
   mais: ['PORTAL DE ÁREAS', 'Escolha seu próximo destino.', 'Acesse os painéis, organize suas missões e ajuste a sua base.', 'list'],
 };
 
@@ -57,7 +58,8 @@ export function painelDaArea(state, rota, sub) {
       valor = `${campos}/3`; rotulo = 'campos do perfil preenchidos'; detalhe = 'Sexo, idade e altura para estimar o gasto'; fracao = campos / 3;
       links = [['barbell', 'Completar perfil', 'Perfil e peso corporal', '#/corpo/medidas'], ['download-simple', 'Guardar progresso', 'Exportar backup dos dados', '', 'config.exportar']]; break;
     }
-    default: valor = '5'; rotulo = 'ferramentas de apoio'; detalhe = 'Métricas, semana, tarefas, rotina e configurações';
+    case 'registros': valor = n(state.feitos.length + state.treinos.length + state.refeicoes.length + state.medidas.length + state.financas.length); rotulo = 'registros de execução'; detalhe = 'Treinos, refeições, peso, dinheiro e ações'; break;
+    default: valor = '6'; rotulo = 'ferramentas de apoio'; detalhe = 'Registros, métricas, semana, tarefas, rotina e configurações';
   }
   const porcentagem = Math.round(Math.max(0, Math.min(1, fracao || 0)) * 100);
   return html`<section class="arena-hero" aria-label="Painel da área"><div class="arena-hero-texto"><span class="arena-kicker">${icon(icone, 16)} ${nome}</span><h2>${titulo}</h2><p>${descricao}</p><span class="arena-legenda">${detalhe}</span>${fracao != null && html`<progress value="${porcentagem}" max="100" aria-label="${detalhe}"></progress>`}</div><div class="arena-trofeu"><span class="arena-emblema">${icon(icone, 52)}</span><b>${valor}</b><span>${rotulo}</span></div></section>${links.length > 0 && html`<div class="arena-atalhos" aria-label="Atalhos da área">${links.map(([ic, texto, dica, destino, acao]) => acao
