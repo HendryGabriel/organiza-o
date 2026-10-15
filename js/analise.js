@@ -1,6 +1,7 @@
 // Análises do dinheiro e do corpo, e o resumo do app que acompanha cada conversa com a assistente.
 // Regras puras, como logic.js e metricas.js: rodam também em `node --test`.
-import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS } from './logic.js';
+import { iso, parseData, hoje, somaDias, diaSemana, categoriaDe, financas, funil, taxa, somaMacros, resumoSemana, planoDoDia, RENDAS, GASTOS, ETAPAS, FECHADOS, AREAS, TIPOS } from './logic.js?v=4';
+import { perfilDaIA } from './perfil.js?v=4';
 
 const total = (lista) => lista.reduce((t, x) => t + x.valor, 0);
 
@@ -180,9 +181,13 @@ const MET = [
   [/hiit|cross|funcional/i, 8],
   [/yoga|ioga|along|pilates|mobilidade/i, 2.5],
 ];
+export function categoriaDoTreino(treino) {
+  if (['musculacao', 'cardio'].includes(treino.categoria)) return treino.categoria;
+  return /corr|trote|caminh|bike|bici|cicl|spinning|pedal|esteira|el[ií]pt|c[aá]rdio|nata[cç]|nado|futebol|hiit|cross|funcional|luta|boxe|muay|jiu/i.test(treino.tipo || '') ? 'cardio' : 'musculacao';
+}
 export function gastoDoTreino(treino, peso) {
   if (!(peso > 0) || !(treino.min > 0)) return 0;
-  const met = MET.find(([nome]) => nome.test(treino.tipo || ''))?.[1] ?? 4.5;
+  const met = categoriaDoTreino(treino) === 'musculacao' ? 4.5 : (MET.find(([nome]) => nome.test(treino.tipo || ''))?.[1] ?? 6);
   // O gasto de base já conta o repouso dessa hora: aqui entra só o que o treino acrescenta.
   return Math.round((met - 1) * peso * (treino.min / 60));
 }
@@ -193,10 +198,14 @@ export function balancoDoDia(state, data) {
   const refeicoes = state.refeicoes.filter((r) => r.data === data);
   const peso = pesoEm(state.medidas, data);
   const base = gastoBase(state.settings, peso);
-  const treino = state.treinos.filter((t) => t.data === data).reduce((s, t) => s + gastoDoTreino(t, peso), 0);
+  const atividades = state.treinos.filter((t) => t.data === data);
+  const porCategoria = (categoria) => atividades.filter((t) => categoriaDoTreino(t) === categoria).reduce((s, t) => s + gastoDoTreino(t, peso), 0);
+  const musculacao = peso > 0 ? porCategoria('musculacao') : null;
+  const cardio = peso > 0 ? porCategoria('cardio') : null;
+  const treino = (musculacao || 0) + (cardio || 0);
   const comeu = refeicoes.length ? somaMacros(refeicoes).kcal : null;
   const gasto = base == null ? null : base + treino;
-  return { data, comeu, base, treino, gasto, saldo: comeu != null && gasto != null ? comeu - gasto : null };
+  return { data, comeu, base, musculacao, cardio, treino, gasto, saldo: comeu != null && gasto != null ? comeu - gasto : null };
 }
 
 // Média dos dias com refeição registrada na janela. Hoje fica de fora: o dia ainda não acabou.
@@ -271,6 +280,7 @@ export function contextoDaAssistente(state, ref = hoje()) {
 
   return {
     hoje: ref,
+    sobreHendry: perfilDaIA(state.settings),
     diaDaSemana: DIAS[diaSemana(ref)],
     registradoHoje: {
       treinos: state.treinos.filter((x) => x.data === ref).map((x) => ({ tipo: x.tipo, minutos: x.min })),

@@ -251,6 +251,29 @@ export function normalizarDia(obj, ref) {
 
 // ---------- Semana ----------
 
+export function dataPublicacao(video) {
+  const datas = Object.values(video.pubs || {}).map((p) => p.data).filter(Boolean).sort();
+  return datas[0] || (['publicado', 'analisado'].includes(video.status) ? video.publicadoEm || video.criadoEm || '' : '');
+}
+
+export const dataRegistroVideo = (v) => v.registradoEm || (String(v.id || '').startsWith('pauta-') ? '' : v.criadoEm || '');
+
+export function progressoDoJogo(state, ref) {
+  const ateHoje = (data) => Boolean(data) && data <= ref;
+  const dias = (lista) => new Set(lista.map((r) => r.data).filter(ateHoje)).size;
+  const xp = state.feitos.filter((f) => ateHoje(f.data)).length * 25
+    + dias(state.treinos) * 50 + dias(state.refeicoes) * 15
+    + state.videos.filter((v) => ateHoje(dataRegistroVideo(v))).length * 30
+    + state.videos.filter((v) => ateHoje(dataPublicacao(v))).length * 70;
+  const missoes = [
+    { nome: 'Concluir uma ação', xp: 25, feito: state.feitos.some((f) => f.data === ref), link: '#/hoje' },
+    { nome: 'Registrar um treino', xp: 50, feito: state.treinos.some((t) => t.data === ref), link: '#/corpo/treino' },
+    { nome: 'Registrar alimentação', xp: 15, feito: state.refeicoes.some((r) => r.data === ref), link: '#/corpo/comida' },
+    { nome: 'Criar um vídeo', xp: 30, feito: state.videos.some((v) => dataRegistroVideo(v) === ref), link: '#/conteudo' },
+  ];
+  return { xp, nivel: 1 + Math.floor(xp / 250), atual: xp % 250, proximo: 250, missoes };
+}
+
 export function resumoSemana(state, ref) {
   const ini = inicioSemana(ref);
   const fim = somaDias(ini, 6);
@@ -268,7 +291,8 @@ export function resumoSemana(state, ref) {
     feitos,
     minutos,
     comerciais: feitos.filter((f) => COMERCIAIS.includes(f.area)).length,
-    videos: new Set(posts).size,
+    videos: state.videos.filter((v) => na(dataPublicacao(v))).length,
+    videosRegistrados: state.videos.filter((v) => na(dataRegistroVideo(v))).length,
     posts: posts.length,
     treinos: state.treinos.filter((t) => na(t.data)).length,
     treinosPlanejados: state.settings.diasTreino.length,

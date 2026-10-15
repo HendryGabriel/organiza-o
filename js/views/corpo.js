@@ -1,11 +1,11 @@
-import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js';
-import { seletor, calendario } from '../widgets.js';
-import { hoje, somaDias, inicioSemana, diaSemana, somaMacros, num } from '../logic.js';
-import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS } from '../analise.js';
-import { reduzirFoto, analisarRefeicao } from '../gemini.js';
-import { ultimasSemanas, kcalPorDia } from '../metricas.js';
-import { barras, linha } from '../graficos.js';
+import { state, actions, abrir, fechar, dialogoAberto, aviso, invalido, uid, texto } from '../core.js?v=4';
+import { html, attr, icon, topo, campo, resumo, vazio, dataCurta, dataMedia, n, compacto } from '../ui.js?v=4';
+import { seletor, calendario } from '../widgets.js?v=4';
+import { hoje, somaDias, inicioSemana, diaSemana, somaMacros, num } from '../logic.js?v=4';
+import { tendencia, balancoDoDia, balancoDoPeriodo, chegadaNaMeta, gastoBase, ROTINAS, categoriaDoTreino } from '../analise.js?v=4';
+import { reduzirFoto, analisarRefeicao } from '../gemini.js?v=4';
+import { ultimasSemanas, caloriasPorDia } from '../metricas.js?v=4';
+import { barras, linha } from '../graficos.js?v=4';
 
 const ABAS = { treino: 'Treino', comida: 'Alimentação', medidas: 'Peso' };
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -28,6 +28,8 @@ function formTreino(t) {
         ${calendario('Data', 'data', t?.data || hoje(), { obrigatorio: true })}
         ${campo('Duração (min)', html`<input name="min" inputmode="numeric" value="${t?.min || ''}" autocomplete="off">`)}
       </div>
+      ${seletor('Categoria', 'categoria', { musculacao: 'Musculação', cardio: 'Cárdio' }, t ? categoriaDoTreino(t) : 'musculacao')}
+      <small>Registre musculação e cárdio separadamente, com a duração de cada atividade.</small>
       ${campo('Treino', html`<input name="tipo" value="${t?.tipo || ''}" autocomplete="off" placeholder="Ex.: peito e tríceps…">`)}
       ${tipos.length > 0 && html`
         <div class="sugestoes" role="group" aria-label="Treinos recentes">
@@ -50,8 +52,14 @@ function treino() {
   const naSemana = semana.filter((x) => feitos.has(x)).length;
   const recentes = [...state.treinos].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 30);
   const semanas8 = ultimasSemanas(state, d, 8, dataCurta);
+  const balanco = balancoDoDia(state, d);
 
   return html`
+    <dl class="stats">
+      <div><dt>musculação hoje</dt><dd class="num">${balanco.musculacao == null ? '—' : n(balanco.musculacao)}<small> kcal</small></dd></div>
+      <div><dt>cárdio hoje</dt><dd class="num">${balanco.cardio == null ? '—' : n(balanco.cardio)}<small> kcal</small></dd></div>
+    </dl>
+    <p class="nota">Gastos estimados pela duração e pelo peso. ${balanco.musculacao == null ? 'Registre seu peso na aba Peso para calcular.' : 'O gasto total do dia inclui também repouso e rotina.'}</p>
     <ol class="tira" aria-label="Treinos desta semana">
       ${semana.map((x) => {
         const feito = feitos.has(x);
@@ -99,7 +107,7 @@ function treino() {
             ${recentes.map((t) => html`
               <li>
                 <button class="linha" data-act="treino.abrir" data-id="${t.id}">
-                  <span class="principal">${t.tipo || 'Treino'}</span>
+                  <span class="principal">${t.tipo || 'Treino'} · ${categoriaDoTreino(t) === 'cardio' ? 'Cárdio' : 'Musculação'}</span>
                   <span class="lado">${dataMedia(t.data)}</span>
                   <span class="detalhe">${t.min ? `${t.min} min` : ''}${t.min && t.obs ? ' · ' : ''}${t.obs}</span>
                 </button>
@@ -207,7 +215,7 @@ function comida() {
   const doDia = state.refeicoes.filter((r) => r.data === d).sort((a, b) => (a.hora || '').localeCompare(b.hora || ''));
   const total = somaMacros(doDia);
   const { metaKcal, metaProteina } = state.settings;
-  const dias = kcalPorDia(state, hoje(), 14);
+  const dias = caloriasPorDia(state, hoje(), 14);
 
   return html`
     <div class="barra">
@@ -249,7 +257,15 @@ function comida() {
         titulo: 'Calorias nos últimos 14 dias',
         rotulos: dias.map((x) => x.data.slice(8)),
         longos: dias.map((x) => dataMedia(x.data)),
-        series: [{ nome: 'Calorias', valores: dias.map((x) => x.kcal) }],
+        sub: 'Gasto total = repouso e rotina + musculação + cárdio. Preencha o perfil e o peso para estimar gastos.',
+        series: [
+          { nome: 'Consumo', cor: 'sn', valores: dias.map((x) => x.comeu) },
+          { nome: 'Gasto total', cor: 's0', valores: dias.map((x) => x.gasto) },
+        ],
+        extras: [
+          { nome: 'Musculação', valores: dias.map((x) => x.musculacao) },
+          { nome: 'Cárdio', valores: dias.map((x) => x.cardio) },
+        ],
         formato: (v) => `${n(v)} kcal`,
         eixo: compacto,
         inteiro: false,
@@ -336,14 +352,14 @@ function medidas() {
       <section class="bloco">
         ${barras({
           titulo: 'Calorias e gasto nos últimos 14 dias',
-          sub: 'Barra abaixo da linha tracejada é dia de déficit.',
+          sub: 'Consumo e gasto estimado de cada dia. Gasto = repouso e rotina + musculação + cárdio.',
           rotulos: q.dias.map((x) => x.data.slice(8)),
           longos: q.dias.map((x) => dataMedia(x.data)),
-          series: [{ nome: 'Calorias', valores: q.dias.map((x) => x.comeu) }],
+          series: [{ nome: 'Consumo', cor: 'sn', valores: q.dias.map((x) => x.comeu) }, { nome: 'Gasto total', cor: 's0', valores: q.dias.map((x) => x.gasto) }],
+          extras: [{ nome: 'Musculação', valores: q.dias.map((x) => x.musculacao) }, { nome: 'Cárdio', valores: q.dias.map((x) => x.cardio) }],
           formato: (v) => `${n(v)} kcal`,
           eixo: compacto,
           inteiro: false,
-          meta: { valor: gastoRef, rotulo: `gasto ${n(gastoRef)}` },
           destaque: 'hoje',
           vazio: 'Nenhuma refeição registrada nos últimos 14 dias.',
         })}
@@ -419,10 +435,11 @@ Object.assign(actions, {
     if (t) abrir('Treino', formTreino(t));
     return false;
   },
-  'treino.salvar': (f) => {
+  'treino.salvar': (f, form) => {
+    if (!(inteiro(f.min) > 0)) return invalido(form.elements.min, 'Informe a duração para calcular o gasto.');
     let t = state.treinos.find((x) => x.id === f.id);
     if (!t) state.treinos.push((t = { id: uid() }));
-    Object.assign(t, { data: f.data, tipo: texto(f.tipo), min: inteiro(f.min), obs: texto(f.obs) });
+    Object.assign(t, { data: f.data, categoria: f.categoria, tipo: texto(f.tipo), min: inteiro(f.min), obs: texto(f.obs) });
     fechar();
   },
   'treino.excluir': ({ id }) => {

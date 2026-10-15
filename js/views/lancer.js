@@ -1,12 +1,12 @@
 // Dinheiro: o placar do Lancer, a análise do mês (de onde vem, para onde vai, onde economizar) e os lançamentos.
-import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js';
-import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js';
-import { seletor, calendario } from '../widgets.js';
-import { hoje, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js';
-import { ultimasSemanas } from '../metricas.js';
-import { fluxoDoMes, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js';
-import { mesesPerto } from './extrato.js';
-import { linha, barrasH } from '../graficos.js';
+import { state, actions, abrir, fechar, aviso, invalido, uid, texto } from '../core.js?v=4';
+import { html, raw, attr, icon, topo, campo, vazio, dataCurta, dinheiro, dinheiroCurto, valorCampo, compacto, pct } from '../ui.js?v=4';
+import { seletor, calendario } from '../widgets.js?v=4';
+import { hoje, parseData, financas, centavos, categoriaDe, TIPOS, CATEGORIAS } from '../logic.js?v=4';
+import { ultimasSemanas } from '../metricas.js?v=4';
+import { fluxoDoMes, economia, prospeccaoEmDinheiro, proximasFaturas, faturaDe, parcelar, mesDe, mesAntes } from '../analise.js?v=4';
+import { mesesPerto } from './extrato.js?v=4';
+import { linha, barrasH } from '../graficos.js?v=4';
 
 const ABAS = { placar: 'Lancer', analise: 'Análise', lancamentos: 'Lançamentos' };
 const SUBTITULO = {

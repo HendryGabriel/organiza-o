@@ -1,5 +1,5 @@
-import { ICONS } from './icons.js';
-import { parseData } from './logic.js';
+import { ICONS } from './icons.js?v=4';
+import { parseData } from './logic.js?v=4';
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ESCAPES[c]);

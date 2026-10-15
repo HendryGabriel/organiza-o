@@ -2,24 +2,29 @@
 // ponytail: rede primeiro, cache só quando a rede falha. Sempre atualizado online, sem versão para lembrar de trocar.
 importScripts('js/lembrete.js'); // montarLembrete: o mesmo texto que a página usa no teste de notificação
 
-const CACHE = 'hendry-v1';
+const CACHE = 'hendry-v4';
 const SHELL = [
+  'js/jornada.js', 'js/perfil.js',
   './', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg',
   'js/app.js', 'js/core.js', 'js/logic.js', 'js/analise.js', 'js/mescla.js', 'js/sinc.js', 'js/metricas.js', 'js/graficos.js', 'js/seed.js', 'js/ui.js', 'js/icons.js', 'js/gemini.js', 'js/audio.js', 'js/extrato.js', 'js/lembrete.js', 'js/lembretes.js', 'js/widgets.js',
   'js/views/hoje.js', 'js/views/assistente.js', 'js/views/negocio.js', 'js/views/conteudo.js', 'js/views/corpo.js', 'js/views/lancer.js', 'js/views/extrato.js', 'js/views/mais.js', 'js/views/metricas.js',
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  const antigos = (await caches.keys()).filter((nome) => nome.startsWith('hendry-v') && nome !== CACHE);
+  await Promise.all(antigos.map((nome) => caches.delete(nome)));
+  await self.clients.claim();
+})()));
 
 self.addEventListener('fetch', (e) => {
   const { request } = e;
   // Só arquivos do próprio app. Chamadas ao Gemini passam direto.
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-cache' })
       .then((res) => {
         const copia = res.clone();
         if (res.ok) caches.open(CACHE).then((c) => c.put(request, copia));

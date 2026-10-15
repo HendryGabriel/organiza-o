@@ -1,5 +1,5 @@
 // Estado inicial: o plano de 12/10 a 31/12/2026 e a pauta de vídeos da planilha de planejamento.
-import { somaDias } from './logic.js';
+import { somaDias } from './logic.js?v=4';
 
 const dia = (area, t5, t30, t90) => ({ area, t5, t30, t90 });
 

@@ -1,8 +1,8 @@
 // Sincronização entre aparelhos. A "nuvem" é um arquivo em um repositório PRIVADO do GitHub do próprio usuário:
 // sem servidor, sem conta nova, e cada envio vira um commit (histórico de graça para desfazer um erro).
 // ponytail: só sincroniza com o app aberto. Envio em segundo plano exigiria tirar o estado do localStorage.
-import { state, aoMudar, aplicarRemoto, aviso } from './core.js';
-import { mesclar, paraNuvem, valido } from './mescla.js';
+import { state, aoMudar, aplicarRemoto, aviso } from './core.js?v=4';
+import { mesclar, paraNuvem, valido } from './mescla.js?v=4';
 
 const CHAVE = 'hendry.sinc'; // fora do estado: o token nunca entra no backup nem vai para a nuvem
 const ARQUIVO = 'dados.json';

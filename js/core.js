@@ -1,8 +1,8 @@
 // Estado, persistência e as peças compartilhadas pelas telas (ações, diálogo, aviso).
-import { seed } from './seed.js';
-import { hoje } from './logic.js';
-import { MAPAS, retrato, carimbar, darIds, valido } from './mescla.js';
-import { html, icon } from './ui.js';
+import { seed } from './seed.js?v=4';
+import { hoje } from './logic.js?v=4';
+import { MAPAS, retrato, carimbar, darIds, valido } from './mescla.js?v=4';
+import { html, icon } from './ui.js?v=4';
 
 const CHAVE = 'hendry.v1';
 

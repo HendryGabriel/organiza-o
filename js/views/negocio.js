@@ -1,7 +1,7 @@
-import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js';
-import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js';
-import { seletor, calendario } from '../widgets.js';
-import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS, CANAIS } from '../logic.js';
+import { state, actions, registrarFeito, abrir, fechar, uid, texto } from '../core.js?v=4';
+import { html, icon, topo, campo, resumo, vazio, dataCurta, pct } from '../ui.js?v=4';
+import { seletor, calendario } from '../widgets.js?v=4';
+import { hoje, funil, taxa, mudarEtapa, ETAPAS, FUNIL, FECHADOS, CANAIS } from '../logic.js?v=4';
 
 const OPCOES_DE_CANAL = Object.fromEntries(CANAIS.map((c) => [c, c]));
 const FILTROS = { ativos: 'Em andamento', todos: 'Todos', ...ETAPAS };
@@ -89,13 +89,15 @@ export function render() {
     ${visiveis.length === 0
       ? vazio(state.leads.length ? 'Nenhum lead nessa etapa.' : 'Nenhum lead ainda. Cadastrar um leva menos de 1 minuto: nome e próximo passo.')
       : html`
-        <ul class="linhas">
+        <ul class="linhas cartas-leads">
           ${visiveis.map((l) => html`
             <li>
               <button class="linha" data-act="lead.abrir" data-id="${l.id}">
+                <span class="lead-emblema" aria-hidden="true">${icon(l.status === 'ganho' ? 'check' : 'handshake', 28)}</span>
                 <span class="principal">${l.empresa}</span>
                 <span class="lado ${l.followUp && l.followUp <= d ? 'alerta' : ''}">${l.followUp ? dataCurta(l.followUp) : ''}</span>
                 <span class="detalhe">${ETAPAS[l.status]}${l.proximoPasso && html` · ${l.proximoPasso}`}</span>
+                <span class="lead-fases" aria-label="Etapa: ${ETAPAS[l.status]}">${FUNIL.map((_, i) => html`<i class="${i <= FUNIL.indexOf(l.status) ? 'acesa' : ''}"></i>`)}</span>
               </button>
             </li>`)}
         </ul>`}`;

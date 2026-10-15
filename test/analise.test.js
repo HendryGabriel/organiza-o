@@ -118,7 +118,9 @@ test('assistente e lembretes: o resumo sai dos registros, em reais e sem inventa
   assert.deepEqual(c.prospeccao.followUpsVencidos, ['Escritório Silva']);
   assert.equal(c.corpo.perfilPreenchido, false);
   assert.equal(c.corpo.pesoAtual, null);
-  assert.ok(JSON.stringify(c).length < 6000);
+  const { sobreHendry, ...numeros } = c;
+  assert.ok(JSON.stringify(numeros).length < 6000);
+  assert.ok(sobreHendry.identidade.includes('Hendry'));
 
   const r = resumoDosLembretes(s, '2026-10-12');
   assert.deepEqual(r.dias['2026-10-12'].followUps, ['Escritório Silva']);

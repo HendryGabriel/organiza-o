@@ -1,6 +1,7 @@
 // Números por trás dos gráficos. Regras puras (sem DOM), para rodar também em `node --test`.
 // Todo gráfico no tempo usa a mesma unidade do app: a semana, de segunda a domingo.
-import { somaDias, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js';
+import { somaDias, inicioSemana, resumoSemana, financas, funil, taxa, somaMacros, COMERCIAIS } from './logic.js?v=4';
+import { balancoDoDia } from './analise.js?v=4';
 
 // As `n` semanas que terminam na semana de `ref`, da mais antiga para a atual (segunda-feira de cada uma).
 export const semanasAte = (ref, n) => [...Array(n)].map((_, i) => somaDias(inicioSemana(ref), -7 * (n - 1 - i)));
@@ -11,6 +12,7 @@ export function serieSemanal(state, semanas) {
     const r = resumoSemana(state, ini);
     const conteudo = r.feitos.filter((f) => f.area === 'conteudo').length;
     const pesos = state.medidas.filter((m) => m.data >= ini && m.data <= fim).sort((a, b) => a.data.localeCompare(b.data));
+    const balancos = [...Array(7)].map((_, i) => balancoDoDia(state, somaDias(ini, i))).filter((d) => d.comeu != null && d.gasto != null);
     return {
       ini,
       fim,
@@ -24,6 +26,7 @@ export function serieSemanal(state, semanas) {
       videos: r.videos,
       treinos: r.treinos,
       kcal: r.kcalMedia, // média por dia registrado; null se a semana não tem refeição
+      gasto: balancos.length ? Math.round(balancos.reduce((t, d) => t + d.gasto, 0) / balancos.length) : null,
       peso: pesos.at(-1)?.peso ?? null, // última medida da semana
       recebido: r.financas.recebido,
       custos: r.financas.custos + r.financas.impostos,
@@ -53,6 +56,10 @@ export function kcalPorDia(state, ref, dias) {
     const doDia = state.refeicoes.filter((r) => r.data === data);
     return { data, kcal: doDia.length ? somaMacros(doDia).kcal : null };
   });
+}
+
+export function caloriasPorDia(state, ref, dias) {
+  return [...Array(dias)].map((_, i) => balancoDoDia(state, somaDias(ref, -(dias - 1 - i))));
 }
 
 // Funil dos leads criados a partir de `desde`: quantos chegaram a cada etapa e a passagem de uma para a outra.

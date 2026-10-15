@@ -1,11 +1,11 @@
 // Tela Hoje: o dia inteiro em uma página. Primeiro a assistente (conte o dia ou pergunte),
 // depois o que já está registrado, a tarefa sugerida e os atalhos.
-import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js';
-import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js';
-import { seletor } from '../widgets.js';
-import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS } from '../logic.js';
-import { balancoDoDia } from '../analise.js';
-import { caixaDaAssistente } from './assistente.js';
+import { state, actions, registrarFeito, abrir, fechar, aviso, uid, texto } from '../core.js?v=4';
+import { html, attr, icon, topo, campo, resumo, dataLonga, dataCurta, duracao, dinheiro, n } from '../ui.js?v=4';
+import { seletor } from '../widgets.js?v=4';
+import { hoje, somaDias, inicioSemana, candidatos, planoDoDia, faseDe, resumoSemana, somaMacros, AREAS, TIPOS, progressoDoJogo } from '../logic.js?v=4';
+import { balancoDoDia } from '../analise.js?v=4';
+import { caixaDaAssistente } from './assistente.js?v=4';
 
 const MODOS = [
   [5, '5 min', 'Dia difícil'],
@@ -139,9 +139,16 @@ export function render() {
   const s = resumoSemana(state, d);
   const prioridades = state.revisoes[somaDias(inicioSemana(d), -7)]?.prioridades;
   const treinou = state.treinos.some((t) => t.data === d);
+  const jogo = progressoDoJogo(state, d);
 
   return html`
     ${topo(maiuscula(dataLonga(d)), sub)}
+
+    <section class="jogo-missoes" aria-label="Missões de hoje">
+      <div class="jogo-missoes-topo"><h2>Missões de hoje</h2><span>${jogo.missoes.filter((m) => m.feito).length}/${jogo.missoes.length} concluídas</span></div>
+      <div class="jogo-missao-lista">${jogo.missoes.map((m) => html`<a class="jogo-missao ${m.feito ? 'concluida' : ''}" href="${m.link}"><span class="jogo-missao-icone" aria-hidden="true">${m.feito ? '✓' : '◇'}</span><span>${m.nome}<small>${m.feito ? 'Concluída' : 'Missão disponível'}</small></span><b>+${m.xp} XP</b></a>`)}</div>
+      <small>XP por ação, vídeo e dia de treino ou alimentação. Publicar um vídeo rende mais 70 XP. Descanso não tira pontos.</small>
+    </section>
 
     ${caixaDaAssistente()}
     ${registradoHoje(d, dia)}
@@ -170,7 +177,7 @@ export function render() {
       <h2 id="h-atalhos">Atalhos</h2>
       <div class="acoes atalhos">
         <label class="btn btn-s">${icon('camera')} Foto da refeição<input class="sr" type="file" accept="image/*" capture="environment" data-mudou="comida.foto"></label>
-        ${!treinou && html`<button class="btn btn-s" data-act="treino.novo">${icon('barbell')} Registrar treino</button>`}
+        <button class="btn btn-s" data-act="treino.novo">${icon('barbell')} ${treinou ? 'Registrar outra atividade' : 'Registrar treino'}</button>
         <button class="btn btn-s" data-act="fin.novo">${icon('plus')} Lançar dinheiro</button>
       </div>
     </section>

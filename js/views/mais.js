@@ -1,12 +1,13 @@
 // Telas de apoio: menu, revisão da semana, tarefas avulsas, rotina e configurações.
-import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js';
-import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js';
-import { seletor, calendario } from '../widgets.js';
-import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js';
-import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js';
-import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js';
-import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js';
-import { formPlano } from './hoje.js';
+import { state, actions, pwa, registrarFeito, substituir, apagarTudo, abrir, fechar, aviso, invalido, baixar, uid, texto } from '../core.js?v=4';
+import { html, raw, attr, icon, topo, campo, resumo, vazio, dataCurta, dinheiro, valorCampo, n, pct } from '../ui.js?v=4';
+import { seletor, calendario } from '../widgets.js?v=4';
+import { hoje, somaDias, inicioSemana, resumoSemana, funil, taxa, centavos, num, AREAS, COMERCIAIS } from '../logic.js?v=4';
+import { config as gemini, salvarConfig, testar, MODELO_PADRAO } from '../gemini.js?v=4';
+import { config as sinc, ligada, textoStatus, conectar, desconectar, sincronizar } from '../sinc.js?v=4';
+import { suportado as avisaAqui, ativo as lembretesAtivos, ativar, desativar, testar as testarLembrete } from '../lembretes.js?v=4';
+import { formPlano } from './hoje.js?v=4';
+import { CAMPOS_PERFIL, perfilDaIA } from '../perfil.js?v=4';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const SEMANA = [1, 2, 3, 4, 5, 6, 0];
@@ -249,6 +250,19 @@ export function config() {
   const g = gemini();
   return html`
     ${topo('Configurações')}
+    <section class="bloco perfil-ia" aria-labelledby="h-perfil-ia">
+      <h2 id="h-perfil-ia">Sobre mim · memória da IA</h2>
+      <p class="nota">Organizado a partir do seu documento hendry.ia. Edite cada assunto e acrescente novidades quando quiser. A assistente e o gerador de roteiros usam as informações salvas.</p>
+      <form class="pilha" data-act="config.perfil">
+        <div class="perfil-assuntos">${Object.entries(CAMPOS_PERFIL).map(([chave, assunto]) => html`
+          <details class="perfil-assunto" ${attr('open', chave === 'atualizacoes')}>
+            <summary>${icon(assunto.icone, 22)}<span>${assunto.titulo}<small>${chave === 'atualizacoes' ? 'Adicione o que a IA precisa saber agora' : 'Clique para consultar ou editar'}</small></span>${icon('caret-right', 16)}</summary>
+            ${campo(assunto.titulo, html`<textarea name="${chave}" rows="${chave === 'atualizacoes' ? 5 : 8}" maxlength="12000" placeholder="Ex.: 14/10 — decidi focar em uma nova especialidade…">${perfilDaIA(s)[chave]}</textarea>`)}
+          </details>`)}</div>
+        <small>Essas informações acompanham as conversas e os roteiros enviados ao Gemini. Ao salvar, também entram no backup e na sincronização de dados, se estiver ligada. Exemplos e planos não viram atividades realizadas.</small>
+        <div class="acoes"><button class="btn btn-p">${icon('check')} Salvar informações</button></div>
+      </form>
+    </section>
     ${!instalado() && blocoInstalar()}
     ${blocoSinc()}
     ${blocoLembretes()}
@@ -305,6 +319,16 @@ export function config() {
 const inteiro = (v) => Math.max(0, Math.round(num(v) || 0));
 
 Object.assign(actions, {
+  'config.perfil': (f, form) => {
+    const perfil = {};
+    for (const chave of Object.keys(CAMPOS_PERFIL)) {
+      const valor = texto(f[chave]);
+      if (valor.length > 12000) return invalido(form.elements[chave], 'Use até 12.000 caracteres neste assunto.');
+      perfil[chave] = valor;
+    }
+    state.settings.perfilIA = perfil;
+    aviso('Informações salvas. A IA usará este contexto nas próximas conversas e roteiros.');
+  },
   'semana.prioridades': ({ ini, prioridades }) => {
     state.revisoes[ini] = { prioridades: texto(prioridades) };
     aviso('Prioridades salvas. Elas aparecem na tela Hoje na semana que vem.');

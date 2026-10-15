@@ -1,11 +1,11 @@
 // Painel de métricas: os mesmos registros do app, vistos semana a semana.
-import { state, actions } from '../core.js';
-import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js';
-import { seletor } from '../widgets.js';
-import { hoje, somaDias } from '../logic.js';
-import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js';
-import { barras, barrasH, linha } from '../graficos.js';
-import { STATUS } from './conteudo.js';
+import { state, actions } from '../core.js?v=4';
+import { html, topo, dataCurta, dinheiro, dinheiroCurto, n, compacto, pct } from '../ui.js?v=4';
+import { seletor } from '../widgets.js?v=4';
+import { hoje, somaDias } from '../logic.js?v=4';
+import { semanasAte, serieSemanal, soma, funilDoPeriodo } from '../metricas.js?v=4';
+import { barras, barrasH, linha } from '../graficos.js?v=4';
+import { STATUS } from './conteudo.js?v=4';
 
 const PERIODOS = { 4: 'Últimas 4 semanas', 8: 'Últimas 8 semanas', 12: 'Últimas 12 semanas' };
 let periodo = '8';
@@ -151,8 +151,8 @@ export function render() {
             ${barras({
               ...noTempo,
               titulo: 'Calorias por dia, média da semana',
-              sub: 'Só os dias com refeição registrada entram na média.',
-              series: [{ nome: 'Média diária', valores: coluna('kcal') }],
+              sub: 'Consumo e gasto estimado nos dias com refeição registrada. O gasto requer perfil e peso.',
+              series: [{ nome: 'Consumo', cor: 'sn', valores: coluna('kcal') }, { nome: 'Gasto total', cor: 's0', valores: coluna('gasto') }],
               formato: (v) => `${n(v)} kcal`,
               eixo: compacto,
               inteiro: false,

@@ -1,19 +1,20 @@
 // Shell: navegação por hash, despacho de ações e registro do service worker.
-import { actions, aoRenderizar, commit, pwa } from './core.js';
-import { html, attr, icon, duracao } from './ui.js';
-import { hoje } from './logic.js';
-import { render as telaHoje } from './views/hoje.js';
-import { render as negocio } from './views/negocio.js';
-import { render as conteudo } from './views/conteudo.js';
-import { render as corpo } from './views/corpo.js';
-import { render as lancer } from './views/lancer.js';
-import './views/extrato.js';
-import { menu, semana, tarefas, rotina, config } from './views/mais.js';
-import { render as metricas } from './views/metricas.js';
-import { iniciar as iniciarGraficos } from './graficos.js';
-import { iniciar as iniciarSincronizacao } from './sinc.js';
-import { iniciar as iniciarLembretes } from './lembretes.js';
-import { iniciar as iniciarComponentes } from './widgets.js';
+import { actions, aoRenderizar, commit, pwa, state } from './core.js?v=4';
+import { painelDaArea } from './jornada.js?v=4';
+import { html, attr, icon, duracao } from './ui.js?v=4';
+import { hoje } from './logic.js?v=4';
+import { render as telaHoje } from './views/hoje.js?v=4';
+import { render as negocio } from './views/negocio.js?v=4';
+import { render as conteudo } from './views/conteudo.js?v=4';
+import { render as corpo } from './views/corpo.js?v=4';
+import { render as lancer } from './views/lancer.js?v=4';
+import './views/extrato.js?v=4';
+import { menu, semana, tarefas, rotina, config } from './views/mais.js?v=4';
+import { render as metricas } from './views/metricas.js?v=4';
+import { iniciar as iniciarGraficos } from './graficos.js?v=4';
+import { iniciar as iniciarSincronizacao } from './sinc.js?v=4';
+import { iniciar as iniciarLembretes } from './lembretes.js?v=4';
+import { iniciar as iniciarComponentes } from './widgets.js?v=4';
 
 const rotas = { hoje: telaHoje, negocio, conteudo, corpo, lancer, mais: menu, metricas, semana, tarefas, rotina, config };
 
@@ -44,7 +45,10 @@ let diaRenderizado;
 function render() {
   const [nome, sub] = location.hash.replace(/^#\/?/, '').split('/');
   const rota = rotas[nome] ? nome : 'hoje';
+  document.body.dataset.area = rota;
+  main.dataset.area = rota;
   main.innerHTML = rotas[rota](sub).__raw;
+  main.querySelector('.topo')?.insertAdjacentHTML('afterend', painelDaArea(state, rota, sub).__raw);
   for (const a of document.querySelectorAll('#nav a[data-rota]')) {
     if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
@@ -108,7 +112,7 @@ addEventListener('appinstalled', () => {
 
 iniciarSincronizacao();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
 iniciarLembretes();
 // Pede ao navegador para não apagar os dados quando faltar espaço.
 navigator.storage?.persist?.();
